@@ -8,7 +8,7 @@ export default function TeacherDashboard() {
         Teacher's Assistant
       </h1>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl mb-12">
         {/* Карточка Чат с ИИ */}
         <Link 
           to="/ai-chat"
@@ -33,6 +33,18 @@ export default function TeacherDashboard() {
           <p className="text-gray-400">Создание интерактивных тестов для учеников</p>
         </Link>
       </div>
+
+      {/* Кнопка для учеников */}
+      <Link 
+        to="/join"
+        className="bg-gray-800 hover:bg-gray-750 border border-gray-700 hover:border-purple-500 rounded-2xl p-6 transition-all duration-300 shadow-lg hover:shadow-purple-500/20 flex flex-col items-center text-center max-w-md w-full"
+      >
+        <div className="w-12 h-12 bg-purple-600/20 rounded-full flex items-center justify-center mb-4">
+          <span className="text-2xl">🎓</span>
+        </div>
+        <h2 className="text-xl font-bold mb-1">Я ученик</h2>
+        <p className="text-gray-400 text-sm">Войти по коду и пройти тест</p>
+      </Link>
     </div>
   );
 }
