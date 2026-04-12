@@ -4,6 +4,8 @@ import CreateQuiz from './pages/CreateQuiz';
 import AiChat from './pages/AiChat';
 import StudentJoin from './pages/StudentJoin'; // <-- добавлено
 import QuizSession from './pages/QuizSession';
+import TeacherQuizMonitor from './pages/TeacherQuizMonitor'; // <-- Добавлено
+
 
 function App() {
   return (
@@ -14,6 +16,7 @@ function App() {
         <Route path="/ai-chat" element={<AiChat />} />
         <Route path="/join" element={<StudentJoin />} /> {/* <-- добавлено */}
         <Route path="/quiz/:id" element={<QuizSession />} /> {/* <-- Добавлено */}
+        <Route path="/teacher/monitor/:quizId" element={<TeacherQuizMonitor />} /> {/* <-- Добавлено */}
       </Routes>
     </div>
   );
