@@ -82,8 +82,6 @@ export default function TeacherQuizMonitor() {
   };
 
   // Загрузка полных деталей ответов для одного участника
-  // Загрузка полных деталей ответов для одного участника
-  // Загрузка полных деталей ответов для одного участника
   const fetchFullAnswers = async (participantId: string) => {
     if (!quizId || !participantId) return;
 
@@ -91,7 +89,6 @@ export default function TeacherQuizMonitor() {
     console.log(' Fetching full answers for participant:', participantId);
 
     try {
-      // Получаем все ответы этого участника вместе с данными вопросов
       const {  data, error: ansError } = await supabase
         .from('answers')
         .select(`
@@ -108,15 +105,12 @@ export default function TeacherQuizMonitor() {
 
       if (ansError) throw ansError;
 
-      // Проверка: если данных нет или массив пуст
       if (!data || data.length === 0) {
         console.warn('No answers found for this participant in DB.');
         setFullAnswers([]);
         return;
       }
 
-      // Формируем удобный формат для отображения
-      // Теперь мы работаем напрямую с массивом data
       const formatted = data.map((item: any) => ({
         question_text: item.questions?.question_text || 'Текст вопроса недоступен',
         correct_answer: item.questions?.correct_answer || '-',
@@ -140,7 +134,7 @@ export default function TeacherQuizMonitor() {
     if (!quizId) return;
 
     const init = async () => {
-      const { data: quiz } = await supabase
+      const {  quiz } = await supabase
         .from('quizzes')
         .select('title')
         .eq('id', quizId)
@@ -206,74 +200,76 @@ export default function TeacherQuizMonitor() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6">
+    <div className="min-h-screen bg-[#0f0f1a] text-white p-6 animate-fade-in">
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">{quizTitle}</h1>
+          <h1 className="text-3xl font-bold gradient-text">{quizTitle}</h1>
           <button 
             onClick={() => navigate('/')}
-            className="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-xl font-bold transition"
+            className="bg-[#1a1a2e] hover:bg-[#252542] border border-[#2d2d44] text-white font-semibold px-6 py-2.5 rounded-xl transition-all duration-200"
           >
             На главную
           </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
+          <div className="bg-[#16213e] border border-[#2d2d44] p-6 rounded-2xl shadow-lg">
             <h3 className="text-lg font-semibold text-gray-400 mb-2">Участников</h3>
-            <p className="text-4xl font-bold">{participants.length}</p>
+            <p className="text-4xl font-bold text-white">{participants.length}</p>
           </div>
-          <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
+          <div className="bg-[#16213e] border border-[#2d2d44] p-6 rounded-2xl shadow-lg">
             <h3 className="text-lg font-semibold text-gray-400 mb-2">Всего ответов</h3>
-            <p className="text-4xl font-bold">{answers.length}</p>
+            <p className="text-4xl font-bold text-white">{answers.length}</p>
           </div>
         </div>
 
-        <div className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
-          <div className="p-6 border-b border-gray-700">
-            <h2 className="text-2xl font-bold">Прогресс учеников (Realtime)</h2>
+        <div className="bg-[#16213e] border border-[#2d2d44] rounded-2xl overflow-hidden shadow-xl">
+          <div className="p-6 border-b border-[#2d2d44]">
+            <h2 className="text-2xl font-bold text-white">Прогресс учеников (Realtime)</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-750">
+              <thead className="bg-[#1a1a2e]">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Имя</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Баллы</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Последний ответ</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Действия</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Время входа</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Имя</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Баллы</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Последний ответ</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Действия</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Время входа</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-700">
+              <tbody className="divide-y divide-[#2d2d44]">
                 {participants.map((participant) => {
                   const userAnswers = answers.filter(a => a.participant_id === participant.id);
                   const lastAnswer = userAnswers[userAnswers.length - 1];
                   
                   return (
-                    <tr key={participant.id} className="hover:bg-gray-750 transition">
+                    <tr key={participant.id} className="hover:bg-[#1a1a2e]/50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="font-medium">{participant.student_name}</div>
+                        <div className="font-medium text-white">{participant.student_name}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900 text-blue-200">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold bg-indigo-900/50 text-indigo-300 border border-indigo-500/30">
                           {participant.score}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
                         {lastAnswer ? (
-                          <span className={lastAnswer.is_correct ? 'text-green-400' : 'text-red-400'}>
-                            {lastAnswer.given_answer} ({lastAnswer.is_correct ? '✓' : '✗'})
+                          <span className={`inline-flex items-center gap-1 ${lastAnswer.is_correct ? 'text-green-400' : 'text-red-400'}`}>
+                            {lastAnswer.given_answer} 
+                            {lastAnswer.is_correct ? '✓' : '✗'}
                           </span>
                         ) : (
-                          <span className="text-gray-500">Проходит тест...</span>
+                          <span className="text-gray-500 italic">Проходит тест...</span>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <button
                           onClick={() => handleViewDetails(participant)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm font-medium transition"
+                          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2"
                         >
-                          👁️ Подробнее
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                          Подробнее
                         </button>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
@@ -286,32 +282,34 @@ export default function TeacherQuizMonitor() {
             </table>
           </div>
           {participants.length === 0 && (
-            <div className="p-8 text-center text-gray-500">
-              Ожидание учеников...
+            <div className="p-12 text-center text-gray-500">
+              <div className="text-6xl mb-4">⏳</div>
+              <p className="text-lg">Ожидание учеников...</p>
+              <p className="text-sm mt-2">Попросите их ввести код на странице входа.</p>
             </div>
           )}
         </div>
       </div>
 
-    {/* МОДАЛЬНОЕ ОКНО С ДЕТАЛЯМИ (OVERLAY) */}
+      {/* МОДАЛЬНОЕ ОКНО С ДЕТАЛЯМИ */}
       {selectedParticipant && (
         <div 
           className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-opacity duration-300"
-          onClick={closeModal} // Закрытие при клике на затемненный фон
+          onClick={closeModal}
         >
           <div 
-            className="bg-gray-800 rounded-2xl border border-gray-600 shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col relative animate-in fade-in zoom-in duration-200"
-            onClick={(e) => e.stopPropagation()} // Предотвращаем закрытие при клике внутри окна
+            className="bg-[#16213e] rounded-2xl border border-[#2d2d44] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col relative animate-in fade-in zoom-in duration-200"
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Header модалки */}
-            <div className="p-6 border-b border-gray-700 flex justify-between items-center bg-gray-800 sticky top-0 z-10">
+            <div className="p-6 border-b border-[#2d2d44] flex justify-between items-center bg-[#16213e] sticky top-0 z-10">
               <div>
                 <h2 className="text-2xl font-bold text-white">Ответы ученика</h2>
-                <p className="text-blue-400 font-medium mt-1">{selectedParticipant.student_name}</p>
+                <p className="text-indigo-400 font-medium mt-1">{selectedParticipant.student_name}</p>
               </div>
               <button 
                 onClick={closeModal}
-                className="text-gray-400 hover:text-white hover:bg-gray-700 rounded-full p-2 transition-colors"
+                className="text-gray-400 hover:text-white hover:bg-[#2d2d44] rounded-full p-2 transition-colors"
                 title="Закрыть"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -322,20 +320,20 @@ export default function TeacherQuizMonitor() {
             <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
               {isLoadingDetails ? (
                 <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-                  <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                  <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
                   <span>Загрузка ответов...</span>
                 </div>
               ) : fullAnswers.length === 0 ? (
-                <div className="text-center py-12 text-gray-400 bg-gray-750/50 rounded-xl border border-dashed border-gray-700">
+                <div className="text-center py-12 text-gray-400 bg-[#1a1a2e]/50 rounded-xl border border-dashed border-[#2d2d44]">
                   <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3 opacity-50"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                   <p>Этот ученик ещё не дал ни одного ответа.</p>
                 </div>
               ) : (
                 <div className="space-y-6">
                   {fullAnswers.map((ans, idx) => (
-                    <div key={idx} className="bg-gray-750/50 p-5 rounded-xl border border-gray-700 hover:border-gray-600 transition-colors">
+                    <div key={idx} className="bg-[#1a1a2e]/50 p-5 rounded-xl border border-[#2d2d44] hover:border-indigo-500/30 transition-colors">
                       <div className="flex justify-between items-start mb-3">
-                        <span className="text-xs font-bold uppercase tracking-wider text-gray-500 bg-gray-800 px-2 py-1 rounded">Вопрос #{idx + 1}</span>
+                        <span className="text-xs font-bold uppercase tracking-wider text-gray-500 bg-[#0f0f1a] px-2 py-1 rounded">Вопрос #{idx + 1}</span>
                         <span className={`text-xs font-bold px-2 py-1 rounded ${ans.is_correct ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}`}>
                           {ans.is_correct ? 'Верно' : 'Ошибка'}
                         </span>
@@ -366,9 +364,9 @@ export default function TeacherQuizMonitor() {
                         {/* Правильный ответ */}
                         <div className="relative">
                           <span className="text-xs text-gray-400 block mb-1.5 ml-1">Правильный ответ:</span>
-                          <div className="p-4 rounded-lg bg-gray-800 border border-gray-600 flex items-center gap-2">
-                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                             <span className="text-lg font-medium text-blue-100">{ans.correct_answer}</span>
+                          <div className="p-4 rounded-lg bg-[#0f0f1a] border border-[#2d2d44] flex items-center gap-2">
+                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-400"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                             <span className="text-lg font-medium text-indigo-100">{ans.correct_answer}</span>
                           </div>
                         </div>
                       </div>
@@ -386,10 +384,10 @@ export default function TeacherQuizMonitor() {
             </div>
             
             {/* Footer модалки */}
-            <div className="p-4 border-t border-gray-700 bg-gray-800 flex justify-end">
+            <div className="p-4 border-t border-[#2d2d44] bg-[#16213e] flex justify-end">
               <button
                 onClick={closeModal}
-                className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2.5 rounded-xl font-bold transition shadow-lg hover:shadow-gray-700/20"
+                className="bg-[#1a1a2e] hover:bg-[#252542] text-white px-6 py-2.5 rounded-xl font-bold transition shadow-lg hover:shadow-[#2d2d44]/20"
               >
                 Закрыть
               </button>
