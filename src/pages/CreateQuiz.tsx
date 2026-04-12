@@ -1,6 +1,6 @@
 // src/pages/CreateQuiz.tsx
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
 type Question = {
@@ -10,7 +10,6 @@ type Question = {
 };
 
 export default function CreateQuiz() {
-  const navigate = useNavigate();
   
   // Состояния формы
   const [title, setTitle] = useState('');
