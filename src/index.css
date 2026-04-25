@@ -1,52 +1,69 @@
+/* src/index.css */
 @import "tailwindcss";
 
-/* Глобальные стили */
-body {
-  background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
+/* Шрифты */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400&display=swap');
+
+:root {
+  --bg-primary: #000000;
+  --text-primary: #FFFFFF;
+}
+
+html, body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
   min-height: 100vh;
-  color: white;
+  overflow-x: hidden;
+  
+  /* ЗАПРЕТ ПРОКРУТКИ ЗА ПРЕДЕЛЫ */
+  overscroll-behavior-y: none; 
+  overscroll-behavior-x: none;
 }
 
-/* Кастомный скроллбар */
+/* Скроллбар */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
 }
-
 ::-webkit-scrollbar-track {
-  background: #0f0f1a;
+  background: #000;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: #2d2d44;
-  border-radius: 4px;
+  background: #333;
+  border-radius: 3px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #3d3d5c;
+/* Утилиты для стекла */
+.glass-panel {
+  @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl;
 }
 
 /* Анимации */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes slideUp {
-  from { 
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to { 
-    opacity: 1;
-    transform: translateY(0);
-  }
+@keyframes shine {
+  0% { transform: translateX(-100%) skewX(-15deg); }
+  100% { transform: translateX(200%) skewX(-15deg); }
 }
 
-.animate-fade-in {
-  animation: fadeIn 0.5s ease-out forwards;
+.animate-fade-in-up {
+  animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.animate-slide-up {
-  animation: slideUp 0.5s ease-out forwards;
+.animate-shine {
+  animation: shine 1.5s infinite linear;
+}
+
+/* Плавные переходы для всех интерактивных элементов */
+button, a {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Эффект нажатия (Active State) */
+.btn-press:active {
+  transform: scale(0.96);
+  opacity: 0.9;
 }
