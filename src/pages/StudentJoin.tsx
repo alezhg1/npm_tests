@@ -12,32 +12,81 @@ export default function StudentJoin() {
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!joinCode.trim() || !studentName.trim()) return;
+    
+    const cleanCode = joinCode.trim().toUpperCase();
+    
+    if (!cleanCode || !studentName.trim()) return;
 
     setIsLoading(true);
     setError('');
+    console.log('🔍 Trying to join with code:', cleanCode);
 
     try {
-      const {  quiz, error: quizError } = await supabase
+      // 1. Ищем квиз по коду
+      // Получаем весь объект ответа
+      const response = await supabase
         .from('quizzes')
-        .select('id, title, status')
-        .eq('join_code', joinCode.toUpperCase())
+        .select('id, title, status, join_code, created_at')
+        .eq('join_code', cleanCode);
+
+      const quizzes = response.data;
+      const quizError = response.error;
+
+      console.log('📦 Supabase Response:', { quizzes, quizError });
+
+      if (quizError) {
+        console.error('Quiz Search Error:', quizError);
+        throw quizError;
+      }
+
+      // Если ничего не найдено или data пустая
+      if (!quizzes || quizzes.length === 0) {
+        console.warn('❌ No quizzes found with this code.');
+        throw new Error(`Квиз с кодом '${cleanCode}' не найден. Проверь правильность ввода.`);
+      }
+
+      // Берем первый найденный квиз
+      const quiz = quizzes[0];
+      console.log('✅ Selected Quiz:', quiz);
+
+      if (quiz.status === 'finished') {
+        throw new Error('Этот квиз уже завершён.');
+      }
+
+      // 2. Добавляем ученика в список участников
+      console.log('➕ Adding participant:', studentName);
+      
+      const participantResponse = await supabase
+        .from('quiz_participants')
+        .insert({ 
+          quiz_id: quiz.id, 
+          student_name: studentName, 
+          score: 0 
+        })
+        .select()
         .single();
 
-      if (quizError || !quiz) throw new Error('Квиз не найден. Проверьте код.');
-      if (quiz.status === 'finished') throw new Error('Этот квиз уже завершён.');
+      const participant = participantResponse.data;
+      const participantError = participantResponse.error;
 
-      const {  participant, error: participantError } = await supabase
-        .from('quiz_participants')
-        .insert({ quiz_id: quiz.id, student_name: studentName, score: 0 })
-        .select().single();
+      if (participantError) {
+        console.error('Participant Creation Error:', participantError);
+        throw new Error('Не удалось присоединиться к квизу. Попробуйте другое имя.');
+      }
 
-      if (participantError) throw new Error('Не удалось присоединиться.');
+      console.log('✅ Participant Created:', participant);
 
-      navigate(`/quiz/${quiz.id}`, { state: { studentName, quizTitle: quiz.title } });
+      // 3. Перенаправляем на страницу прохождения теста
+      navigate(`/quiz/${quiz.id}`, { 
+        state: { 
+          studentName, 
+          quizTitle: quiz.title 
+        } 
+      });
 
     } catch (err: any) {
-      setError(err.message);
+      console.error('Final Join Error:', err);
+      setError(err.message || 'Ошибка при подключении. Попробуйте снова.');
     } finally {
       setIsLoading(false);
     }
@@ -69,7 +118,7 @@ export default function StudentJoin() {
         </div>
 
         {error && (
-          <div className="mb-6 p-3 bg-red-500/10 border border-red-500/30 text-red-300 text-sm rounded-lg">
+          <div className="mb-6 p-3 bg-red-500/10 border border-red-500/30 text-red-300 text-sm rounded-lg animate-pulse">
             {error}
           </div>
         )}
@@ -81,7 +130,7 @@ export default function StudentJoin() {
               type="text"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-              placeholder="XXXXXX"
+              placeholder="НАПРИМЕР: A1B2C3"
               className="w-full bg-black/50 border border-white/20 text-white px-4 py-3 rounded-lg focus:outline-none focus:border-white/50 transition-colors placeholder-gray-600 text-2xl tracking-widest font-mono text-center"
               maxLength={6}
               autoFocus
