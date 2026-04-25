@@ -42,6 +42,7 @@ export default function TeacherQuizMonitor() {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [quizTitle, setQuizTitle] = useState('Загрузка...');
+  const [joinCode, setJoinCode] = useState<string>(''); // Добавили состояние для кода
   const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null);
   const [fullAnswers, setFullAnswers] = useState<FullAnswerDetail[]>([]);
   const [cheatEvents, setCheatEvents] = useState<CheatEvent[]>([]);
@@ -161,18 +162,43 @@ export default function TeacherQuizMonitor() {
   useEffect(() => {
     if (!quizId) return;
 
-    const init = async () => {
-      const {   quiz, error } = await supabase
-        .from('quizzes')
-        .select('title')
-        .eq('id', quizId)
-        .single();
-      
-      if (quiz) setQuizTitle(quiz.title);
-      if (error) console.error('Error fetching quiz title:', error);
+        const init = async () => {
+      console.log('🔍 Initializing Monitor for Quiz ID:', quizId); // <-- Лог ID из URL
 
-      await fetchParticipants();
-      await fetchAnswers(); 
+      try {
+        // Загружаем название и код квиза одним запросом
+        const response = await supabase
+          .from('quizzes')
+          .select('title, join_code')
+          .eq('id', quizId)
+          .single();
+        
+        console.log('📦 Quiz Info Response:', response); // <-- Лог полного ответа от базы
+
+        const quiz = response.data;
+        const error = response.error;
+        
+        if (error) {
+          console.error('Error fetching quiz info:', error);
+          setQuizTitle('Ошибка');
+          setJoinCode('ERR');
+        } else if (!quiz) {
+           // Сюда мы попадаем, если quiz === null
+           console.warn('⚠️ Quiz not found in DB for ID:', quizId);
+           setQuizTitle('Квиз не найден');
+           setJoinCode('???');
+        } else {
+          setQuizTitle(quiz.title || 'Без названия');
+          setJoinCode(quiz.join_code || '???');
+        }
+
+        await fetchParticipants();
+        await fetchAnswers(); 
+      } catch (err) {
+        console.error('Init error:', err);
+        setQuizTitle('Сбой');
+        setJoinCode('???');
+      }
     };
 
     init();
@@ -250,7 +276,13 @@ export default function TeacherQuizMonitor() {
 
       <div className="relative z-10 max-w-6xl mx-auto animate-fade-in-up">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold drop-shadow-lg">{quizTitle}</h1>
+          {/* ИЗМЕНЕНИЕ ЗДЕСЬ: Отображаем Название : Код */}
+          <h1 className="text-3xl font-bold drop-shadow-lg flex items-center gap-3">
+            <span className="text-white">{quizTitle}</span>
+            <span className="text-gray-500 text-xl">:</span>
+            <span className="text-[#FFCC00] font-mono text-2xl tracking-widest">{joinCode}</span>
+          </h1>
+          
           <button 
             onClick={() => navigate('/')}
             className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-6 py-2.5 rounded-lg transition-all duration-200 btn-press"
@@ -431,7 +463,6 @@ export default function TeacherQuizMonitor() {
                     <div className="text-center py-12 text-gray-400 bg-black/30 rounded-xl border border-dashed border-white/10">
                       <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3 opacity-50"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                       <p>Этот ученик ещё не дал ни одного ответа.</p>
-                      <p className="text-xs mt-2 text-gray-500">(Проверьте консоль браузера для диагностики)</p>
                     </div>
                   )}
 

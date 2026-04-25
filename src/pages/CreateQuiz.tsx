@@ -42,32 +42,22 @@ export default function CreateQuiz() {
       const code = generateJoinCode();
       console.log('1️⃣ Generated Code:', code);
       
-      // Выполняем запрос
       const response = await supabase
         .from('quizzes')
         .insert({
           title: title,
           join_code: code,
           status: 'waiting',
-          teacher_id: null // Явно передаем null, так как поле теперь nullable
+          teacher_id: null 
         })
-        .select() // Важно запрашивать данные обратно, чтобы получить ID
+        .select()
         .single();
 
       const createdQuiz = response.data;
       const quizError = response.error;
 
-      // ПРОВЕРКА ОШИБОК ЗАПРОСА
-      if (quizError) {
-        console.error('Quiz Creation Error:', quizError);
-        throw new Error(`Ошибка создания квиза: ${quizError.message}`);
-      }
-
-      // ПРОВЕРКА НАЛИЧИЯ ДАННЫХ (ID)
-      if (!createdQuiz || !createdQuiz.id) {
-        console.error('Response without ID:', response);
-        throw new Error('Квиз создан, но ID не получен. Проверьте права доступа (RLS/SELECT) на таблицу quizzes в Supabase.');
-      }
+      if (quizError) throw quizError;
+      if (!createdQuiz || !createdQuiz.id) throw new Error('Квиз создан, но ID не получен.');
 
       console.log('2️⃣ Quiz Created ID:', createdQuiz.id);
       setQuizData(createdQuiz);
@@ -93,14 +83,16 @@ export default function CreateQuiz() {
           }
           console.log('4️⃣ Image Uploaded');
 
-          // Получаем публичный URL
-          const {   urlData } = supabase.storage.from('quiz-images').getPublicUrl(fileName);
+          // --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+          // Получаем публичный URL. В новых версиях supabase-js ответ: { data: { publicUrl: string } }
+          const {  data } = supabase.storage.from('quiz-images').getPublicUrl(fileName);
           
-          if (!urlData || !urlData.publicUrl) {
-             throw new Error('Не удалось получить ссылку на изображение');
+          if (!data || !data.publicUrl) {
+             console.error('Failed to get public URL. Response:', data);
+             throw new Error('Не удалось получить ссылку на изображение. Проверьте, что ведро "quiz-images" публичное в настройках Supabase Storage.');
           }
           
-          imageUrl = urlData.publicUrl;
+          imageUrl = data.publicUrl;
           console.log('5️⃣ Image URL:', imageUrl);
         }
 
@@ -130,7 +122,6 @@ export default function CreateQuiz() {
       console.error('❌ Final Error:', error);
       alert(`Ошибка: ${error.message}. Проверьте консоль (F12) для деталей.`);
     } finally {
-      // Гарантированно выключаем спиннер
       setIsSaving(false);
       console.log('🏁 Saving process finished.');
     }
