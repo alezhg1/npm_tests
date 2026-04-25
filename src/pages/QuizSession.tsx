@@ -8,8 +8,8 @@ export default function QuizSession() {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Данные из state (переданные при входе)
-  const { studentName } = location.state || {};
+  // Получаем данные из state (переданные при входе)
+  const { studentName, participantId: participantIdFromState } = location.state || {};
 
   const [questions, setQuestions] = useState<any[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -23,28 +23,41 @@ export default function QuizSession() {
   const [cheatCount, setCheatCount] = useState(0);
   const lastVisibleTimeRef = useRef<number>(Date.now());
 
-  // Загрузка вопросов и поиск participant_id при монтировании
+  // Загрузка вопросов и настройка участника
   useEffect(() => {
-    if (!id || !studentName) return;
+    if (!id) return; 
     
     const fetchData = async () => {
-      // 1. Находим участника
-      const {   participantData, error: pError } = await supabase
-        .from('quiz_participants')
-        .select('id')
-        .eq('quiz_id', id)
-        .eq('student_name', studentName)
-        .order('joined_at', { ascending: false })
-        .limit(1)
-        .single();
+      let currentParticipantId = participantIdFromState; // Используем ID из state, если есть
 
-      if (pError || !participantData) {
-        console.error("Ошибка поиска участника:", pError);
-        navigate('/join');
-        return;
+      // Если ID не пришел из state (например, при обновлении страницы F5), ищем по имени
+      if (!currentParticipantId && studentName) {
+        console.log('⚠️ No participantId in state, searching by name...');
+        const {   foundParticipant, error: pError } = await supabase
+          .from('quiz_participants')
+          .select('id')
+          .eq('quiz_id', id)
+          .eq('student_name', studentName)
+          .order('joined_at', { ascending: false }) // Берем самого последнего вошедшего
+          .limit(1)
+          .single();
+
+        if (pError || !foundParticipant) {
+          console.error("Ошибка поиска участника:", pError);
+          navigate('/join');
+          return;
+        }
+        currentParticipantId = foundParticipant.id;
       }
-      
-      setParticipantId(participantData.id);
+
+      if (!currentParticipantId) {
+         console.error("Не удалось определить участника");
+         navigate('/join');
+         return;
+      }
+
+      setParticipantId(currentParticipantId);
+      console.log('✅ Using Participant ID:', currentParticipantId);
 
       // 2. Загружаем вопросы
       const { data, error: qError } = await supabase
@@ -61,7 +74,7 @@ export default function QuizSession() {
     };
 
     fetchData();
-  }, [id, studentName, navigate]);
+  }, [id, studentName, participantIdFromState, navigate]);
 
   // --- АНТИ-СПИСЫВАНИЕ ---
   useEffect(() => {
@@ -79,7 +92,8 @@ export default function QuizSession() {
         });
       } else {
         const awayDuration = Math.floor((Date.now() - lastVisibleTimeRef.current) / 1000);
-        console.log(`Ученик отсутствовал ${awayDuration} сек.`);
+        // ЛОГИ УБРАНЫ, ЧТОБЫ НЕ ЗАГРЯЗНЯТЬ КОНСОЛЬ УЧЕНИКА
+        // console.log(`Ученик отсутствовал ${awayDuration} сек.`);
       }
     };
 

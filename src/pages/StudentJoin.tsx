@@ -23,31 +23,21 @@ export default function StudentJoin() {
 
     try {
       // 1. Ищем квиз по коду
-      // Получаем весь объект ответа
       const response = await supabase
         .from('quizzes')
-        .select('id, title, status, join_code, created_at')
+        .select('id, title, status, join_code')
         .eq('join_code', cleanCode);
 
       const quizzes = response.data;
       const quizError = response.error;
 
-      console.log('📦 Supabase Response:', { quizzes, quizError });
+      if (quizError) throw quizError;
 
-      if (quizError) {
-        console.error('Quiz Search Error:', quizError);
-        throw quizError;
-      }
-
-      // Если ничего не найдено или data пустая
       if (!quizzes || quizzes.length === 0) {
-        console.warn('❌ No quizzes found with this code.');
-        throw new Error(`Квиз с кодом '${cleanCode}' не найден. Проверь правильность ввода.`);
+        throw new Error(`Квиз с кодом '${cleanCode}' не найден.`);
       }
 
-      // Берем первый найденный квиз
       const quiz = quizzes[0];
-      console.log('✅ Selected Quiz:', quiz);
 
       if (quiz.status === 'finished') {
         throw new Error('Этот квиз уже завершён.');
@@ -70,23 +60,23 @@ export default function StudentJoin() {
       const participantError = participantResponse.error;
 
       if (participantError) {
-        console.error('Participant Creation Error:', participantError);
-        throw new Error('Не удалось присоединиться к квизу. Попробуйте другое имя.');
+        throw new Error('Не удалось присоединиться к квизу.');
       }
 
-      console.log('✅ Participant Created:', participant);
+      console.log('✅ Participant Created ID:', participant.id);
 
-      // 3. Перенаправляем на страницу прохождения теста
+      // 3. Перенаправляем, передавая ID участника!
       navigate(`/quiz/${quiz.id}`, { 
         state: { 
           studentName, 
-          quizTitle: quiz.title 
+          quizTitle: quiz.title,
+          participantId: participant.id // <-- КЛЮЧЕВОЙ МОМЕНТ
         } 
       });
 
     } catch (err: any) {
       console.error('Final Join Error:', err);
-      setError(err.message || 'Ошибка при подключении. Попробуйте снова.');
+      setError(err.message || 'Ошибка при подключении.');
     } finally {
       setIsLoading(false);
     }

@@ -99,7 +99,7 @@ export default function TeacherQuizMonitor() {
 
     try {
       // 1. Загружаем ответы
-      const {  answersData, error: ansError } = await supabase
+      const response = await supabase
         .from('answers')
         .select(`
           *,
@@ -111,28 +111,42 @@ export default function TeacherQuizMonitor() {
         .eq('participant_id', participantId)
         .order('answered_at', { ascending: true });
 
+      const answersData = response.data;
+      const ansError = response.error;
+
+      console.log('Raw Answers Response:', { answersData, ansError });
+
       if (ansError) throw ansError;
 
       // 2. Загружаем события списывания
-      const {  cheatsData, error: cheatError } = await supabase
+      const cheatsResponse = await supabase
         .from('cheat_events')
         .select('*')
         .eq('participant_id', participantId)
         .order('detected_at', { ascending: true });
 
+      const cheatsData = cheatsResponse.data;
+      const cheatError = cheatsResponse.error;
+
       if (cheatError) console.error('Error fetching cheat events:', cheatError);
 
       // Форматируем ответы
-      const formattedAnswers = (answersData || []).map((item: any) => ({
-        question_text: item.questions?.question_text || 'Текст вопроса недоступен',
-        correct_answer: item.questions?.correct_answer || '-',
-        given_answer: item.given_answer,
-        is_correct: item.is_correct,
-        answered_at: item.answered_at
-      }));
+      let formattedAnswers = [];
+      if (answersData && answersData.length > 0) {
+        formattedAnswers = answersData.map((item: any) => ({
+          question_text: item.questions?.question_text || 'Текст вопроса недоступен',
+          correct_answer: item.questions?.correct_answer || '-',
+          given_answer: item.given_answer,
+          is_correct: item.is_correct,
+          answered_at: item.answered_at
+        }));
+      }
+
+      console.log('Formatted Answers:', formattedAnswers);
+      console.log('Cheat Events:', cheatsData);
 
       setFullAnswers(formattedAnswers);
-      setCheatEvents(cheatsData || []); // <-- Сохраняем события
+      setCheatEvents(cheatsData || []);
 
     } catch (err) {
       console.error('Error fetching full details:', err);
@@ -148,7 +162,7 @@ export default function TeacherQuizMonitor() {
     if (!quizId) return;
 
     const init = async () => {
-      const {  quiz, error } = await supabase
+      const {   quiz, error } = await supabase
         .from('quizzes')
         .select('title')
         .eq('id', quizId)
@@ -417,6 +431,7 @@ export default function TeacherQuizMonitor() {
                     <div className="text-center py-12 text-gray-400 bg-black/30 rounded-xl border border-dashed border-white/10">
                       <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-3 opacity-50"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                       <p>Этот ученик ещё не дал ни одного ответа.</p>
+                      <p className="text-xs mt-2 text-gray-500">(Проверьте консоль браузера для диагностики)</p>
                     </div>
                   )}
 
