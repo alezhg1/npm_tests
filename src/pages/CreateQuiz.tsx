@@ -24,7 +24,6 @@ export default function CreateQuiz() {
 
   const addQuestion = () => {
     setQuestions([...questions, { text: '', image: null, correctAnswer: '' }]);
-    // Прокрутка к новому вопросу
     setTimeout(() => {
       const newQuestionIndex = questions.length;
       const element = document.getElementById(`question-${newQuestionIndex}`);
@@ -44,7 +43,6 @@ export default function CreateQuiz() {
       const reader = new FileReader();
       reader.onloadend = () => {
         imagePreviewRefs.current[index] = reader.result as string;
-        // Форсируем перерисовку, чтобы показать превью
         setQuestions([...newQuestions]); 
       };
       reader.readAsDataURL(value);
@@ -53,12 +51,25 @@ export default function CreateQuiz() {
     }
   };
 
+  // Обработчик для Drag & Drop и Paste
+  const handleFileDropOrPaste = (index: number, file: File) => {
+    if (!file.type.startsWith('image/')) {
+      alert('Пожалуйста, загрузите только изображения.');
+      return;
+    }
+    // Проверка размера (5MB лимит для безопасности)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Файл слишком большой. Максимальный размер: 5 МБ.');
+      return;
+    }
+    updateQuestion(index, 'image', file);
+  };
+
   const generateJoinCode = () => Math.floor(100000 + Math.random() * 900000).toString();
 
   const handleSaveQuiz = async () => {
     if (!title.trim()) return alert('Введите название квиза!');
     
-    // Проверка, что все вопросы заполнены
     for (let i = 0; i < questions.length; i++) {
       if (!questions[i].text.trim() || !questions[i].correctAnswer.trim()) {
         alert(`Заполните текст вопроса и правильный ответ для вопроса №${i + 1}`);
@@ -70,7 +81,6 @@ export default function CreateQuiz() {
     console.log('🚀 Start saving quiz...');
 
     try {
-      // 1. Создаем запись о квизе
       const code = generateJoinCode();
       console.log('1️⃣ Generated Code:', code);
       
@@ -94,31 +104,38 @@ export default function CreateQuiz() {
       console.log('2️⃣ Quiz Created ID:', createdQuiz.id);
       setQuizData(createdQuiz);
 
-      // 2. Проходим по всем вопросам и сохраняем их
       for (let i = 0; i < questions.length; i++) {
         const q = questions[i];
         let imageUrl = '';
 
-        // Если есть картинка, загружаем её в Storage
         if (q.image) {
           console.log(`3️⃣ Uploading image for question ${i + 1}...`);
-          const fileExt = q.image.name.split('.').pop();
           
-          // ИСПРАВЛЕНИЕ: Используем 'i' вместо 'index'
+          // Проверка размера файла перед загрузкой
+          if (q.image.size > 5 * 1024 * 1024) {
+            throw new Error(`Файл "${q.image.name}" слишком большой (макс. 5MB).`);
+          }
+
+          const fileExt = q.image.name.split('.').pop();
           const fileName = `${createdQuiz.id}/q${i}_${Date.now()}.${fileExt}`;
           
-          const { error: uploadError } = await supabase.storage
-            .from('quiz-images')
-            .upload(fileName, q.image, {
-               cacheControl: '3600',
-               upsert: false 
-            });
+          try {
+            const { error: uploadError } = await supabase.storage
+              .from('quiz-images')
+              .upload(fileName, q.image, {
+                 cacheControl: '3600',
+                 upsert: false 
+              });
 
-          if (uploadError) {
-            console.error('Upload Error:', uploadError);
-            throw new Error(`Ошибка загрузки фото: ${uploadError.message}`);
+            if (uploadError) {
+              console.error('Upload Error Details:', uploadError);
+              throw new Error(`Ошибка загрузки фото: ${uploadError.message}`);
+            }
+            console.log('4️⃣ Image Uploaded');
+          } catch (err) {
+             console.error('Network/Storage Error:', err);
+             throw new Error('Не удалось загрузить изображение. Проверьте подключение к интернету и настройки Storage в Supabase (Policies).');
           }
-          console.log('4️⃣ Image Uploaded');
 
           // Получаем публичный URL
           const {   data } = supabase.storage.from('quiz-images').getPublicUrl(fileName);
@@ -132,7 +149,6 @@ export default function CreateQuiz() {
           console.log('5️⃣ Image URL:', imageUrl);
         }
 
-        // Сохраняем вопрос в базу
         console.log(`6️⃣ Saving question ${i + 1} to DB...`);
         const { error: questionError } = await supabase
           .from('questions')
@@ -167,47 +183,25 @@ export default function CreateQuiz() {
   if (joinCode && quizData) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 relative">
-        {/* Версия */}
-        <div className="fixed top-6 left-6 z-50 text-white/30 text-xs font-mono tracking-widest pointer-events-none select-none">
-          v0.1.0
-        </div>
-
-        {/* Фон */}
+        <div className="fixed top-6 left-6 z-50 text-white/30 text-xs font-mono tracking-widest pointer-events-none select-none">v0.1.0</div>
         <div className="fixed inset-0 z-0">
-          <img 
-            src="/create_page.png" 
-            alt="Background" 
-            className="w-full h-full object-cover opacity-80 contrast-125 brightness-110 saturate-110"
-          />
+          <img src="/create_page.png" alt="Background" className="w-full h-full object-cover opacity-80 contrast-125 brightness-110 saturate-110" />
           <div className="absolute inset-0 bg-black/40"></div>
           <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[150px] pointer-events-none mix-blend-screen"></div>
           <div className="absolute bottom-[-10%] right-[-10%] w-[700px] h-[700px] bg-purple-500/10 rounded-full blur-[180px] pointer-events-none mix-blend-screen"></div>
         </div>
-
         <div className="glass-panel p-8 md:p-12 max-w-md w-full text-center relative z-10 animate-fade-in-up">
           <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-green-500/30">
             <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-white"><polyline points="20 6 9 17 4 12"></polyline></svg>
           </div>
-          
           <h2 className="text-3xl font-bold mb-2 text-white drop-shadow-lg">Квиз создан!</h2>
           <p className="text-gray-400 mb-8">Ученики могут войти по этому коду:</p>
-          
           <div className="bg-black/50 border-2 border-dashed border-white/20 rounded-xl py-6 px-4 mb-8 group hover:border-white/40 transition-colors">
-            <span className="text-5xl font-mono font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">
-              {joinCode}
-            </span>
+            <span className="text-5xl font-mono font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">{joinCode}</span>
           </div>
-          
           <div className="space-y-3">
-            <Link 
-              to={`/teacher/monitor/${quizData.id}`} 
-              className="block w-full bg-white text-black font-bold py-4 rounded-lg hover:bg-gray-200 transition-all duration-300 shadow-lg hover:shadow-white/20 btn-press"
-            >
-              👁️ Следить за квизом (Realtime)
-            </Link>
-            <Link to="/" className="block w-full bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold py-4 rounded-lg transition-all duration-300 btn-press">
-              На главную
-            </Link>
+            <Link to={`/teacher/monitor/${quizData.id}`} className="block w-full bg-white text-black font-bold py-4 rounded-lg hover:bg-gray-200 transition-all duration-300 shadow-lg hover:shadow-white/20 btn-press">👁️ Следить за квизом (Realtime)</Link>
+            <Link to="/" className="block w-full bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold py-4 rounded-lg transition-all duration-300 btn-press">На главную</Link>
           </div>
         </div>
       </div>
@@ -217,25 +211,15 @@ export default function CreateQuiz() {
   // Форма создания
   return (
     <div className="min-h-screen bg-black relative p-6 pb-32">
-      {/* Версия */}
-      <div className="fixed top-6 left-6 z-50 text-white/30 text-xs font-mono tracking-widest pointer-events-none select-none">
-        v0.1.0
-      </div>
-
-      {/* Фон */}
+      <div className="fixed top-6 left-6 z-50 text-white/30 text-xs font-mono tracking-widest pointer-events-none select-none">v0.1.0</div>
       <div className="fixed inset-0 z-0">
-        <img 
-          src="/create_page.png" 
-          alt="Background" 
-          className="w-full h-full object-cover opacity-80 contrast-125 brightness-110 saturate-110"
-        />
+        <img src="/create_page.png" alt="Background" className="w-full h-full object-cover opacity-80 contrast-125 brightness-110 saturate-110" />
         <div className="absolute inset-0 bg-black/40"></div>
         <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[150px] pointer-events-none mix-blend-screen"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[700px] h-[700px] bg-purple-500/10 rounded-full blur-[180px] pointer-events-none mix-blend-screen"></div>
       </div>
 
       <div className="relative z-10 max-w-4xl mx-auto animate-fade-in-up pb-32">
-        {/* Заголовок страницы */}
         <div className="flex justify-between items-start mb-12">
           <div>
             <h1 className="text-4xl md:text-5xl font-bold drop-shadow-lg mb-2">Новый квиз</h1>
@@ -247,7 +231,6 @@ export default function CreateQuiz() {
           </Link>
         </div>
 
-        {/* Основная информация о квизе */}
         <div className="glass-panel p-8 rounded-3xl mb-10">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-8 h-8 bg-indigo-500/20 rounded-lg flex items-center justify-center">
@@ -255,7 +238,6 @@ export default function CreateQuiz() {
             </div>
             <label className="text-xl font-semibold text-white">Основная информация</label>
           </div>
-          
           <div>
             <label className="block text-sm font-medium text-gray-400 mb-2 ml-1">Название квиза</label>
             <input
@@ -268,7 +250,6 @@ export default function CreateQuiz() {
           </div>
         </div>
 
-        {/* Список вопросов */}
         <div className="space-y-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -277,10 +258,7 @@ export default function CreateQuiz() {
               </div>
               <h2 className="text-2xl font-bold text-white">Вопросы ({questions.length})</h2>
             </div>
-            <button
-              onClick={addQuestion}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-4 py-2 rounded-lg transition-all duration-200 btn-press"
-            >
+            <button onClick={addQuestion} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-4 py-2 rounded-lg transition-all duration-200 btn-press">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
               Добавить вопрос
             </button>
@@ -290,16 +268,33 @@ export default function CreateQuiz() {
             <div 
               key={index} 
               id={`question-${index}`}
-              className="glass-panel p-6 rounded-3xl relative group hover:border-indigo-500/30 transition-all duration-300 animate-fade-in-up"
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                  handleFileDropOrPaste(index, e.dataTransfer.files[0]);
+                }
+              }}
+              onPaste={(e) => {
+                const items = e.clipboardData?.items;
+                if (items) {
+                  for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf('image') !== -1) {
+                      const blob = items[i].getAsFile();
+                      if (blob) handleFileDropOrPaste(index, blob);
+                      break;
+                    }
+                  }
+                }
+              }}
+              className="glass-panel p-6 rounded-3xl relative group hover:border-indigo-500/30 transition-all duration-300 animate-fade-in-up border-2 border-dashed border-transparent hover:border-indigo-500/30"
               style={{ animationDelay: `${index * 50}ms` }}
             >
-              {/* Номер вопроса */}
               <div className="absolute -top-3 left-6 bg-black/80 backdrop-blur-sm border border-white/20 px-4 py-1.5 rounded-full text-sm font-bold text-gray-300 flex items-center gap-2 shadow-lg">
                 <span className="w-6 h-6 bg-indigo-500/20 rounded-full flex items-center justify-center text-xs text-indigo-300">{index + 1}</span>
                 Вопрос
               </div>
               
-              {/* Текст задания */}
               <div className="mb-6 mt-4">
                 <label className="block text-xs font-medium text-gray-500 mb-2 ml-1 uppercase tracking-wide flex items-center gap-2">
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
@@ -314,11 +309,10 @@ export default function CreateQuiz() {
                 />
               </div>
 
-              {/* Фото (необязательно) с превью */}
               <div className="mb-6">
                 <label className="block text-xs font-medium text-gray-500 mb-2 ml-1 uppercase tracking-wide flex items-center gap-2">
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-                  Изображение (необязательно)
+                  Изображение (необязательно) — можно перетащить сюда или вставить (Ctrl+V)
                 </label>
                 
                 <div className="flex flex-col sm:flex-row gap-4 items-start">
@@ -331,7 +325,6 @@ export default function CreateQuiz() {
                     />
                   </div>
                   
-                  {/* Превью изображения */}
                   {imagePreviewRefs.current[index] && (
                     <div className="relative w-24 h-24 sm:w-32 sm:h-32 flex-shrink-0 group/image">
                       <img 
@@ -358,7 +351,6 @@ export default function CreateQuiz() {
                 )}
               </div>
 
-              {/* Правильный ответ */}
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-2 ml-1 uppercase tracking-wide flex items-center gap-2">
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
@@ -376,21 +368,13 @@ export default function CreateQuiz() {
           ))}
         </div>
 
-        {/* Плавающая панель действий внизу */}
         <div className="fixed bottom-0 left-0 right-0 bg-black/80 backdrop-blur-md border-t border-white/10 p-4 z-20">
           <div className="max-w-4xl mx-auto flex gap-4">
-            <button
-              onClick={addQuestion}
-              className="flex-1 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold py-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 btn-press"
-            >
+            <button onClick={addQuestion} className="flex-1 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold py-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 btn-press">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
               Добавить вопрос
             </button>
-            <button
-              onClick={handleSaveQuiz}
-              disabled={isSaving}
-              className="flex-[2] bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 btn-press"
-            >
+            <button onClick={handleSaveQuiz} disabled={isSaving} className="flex-[2] bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2 btn-press">
               {isSaving ? (
                 <>
                   <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
