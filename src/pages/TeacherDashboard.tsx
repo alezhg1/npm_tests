@@ -53,9 +53,9 @@ export default function TeacherDashboard() {
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3 group">
             <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/25 group-hover:shadow-indigo-500/40 transition-shadow">
-              <span className="text-white font-bold text-sm">TA</span>
+              <span className="text-white font-bold text-sm">KL</span>
             </div>
-            <span className="font-bold text-lg tracking-tight hidden sm:block">Teacher's Assistant</span>
+            <span className="font-bold text-lg tracking-tight hidden sm:block">Kepler</span>
           </Link>
 
           <nav className="flex items-center gap-4">
@@ -99,16 +99,16 @@ export default function TeacherDashboard() {
         <section className="min-h-[calc(100vh-6rem)] flex flex-col items-center justify-center px-6 py-12"> {/* Уменьшил py-20 до py-12 */}
           <div className="max-w-4xl text-center animate-fade-in-up -mt-16"> {/* Добавил -mt-16 для подъема всего блока */}
             <div className="inline-block mb-6 px-6 py-2 border border-white/30 rounded-full bg-white/10 backdrop-blur-md shadow-[0_0_15px_rgba(255,255,255,0.1)]">
-              <span className="text-xs uppercase tracking-[0.2em] text-gray-200 font-semibold">Education Platform</span>
+              <span className="text-xs uppercase tracking-[0.2em] text-gray-200 font-semibold">образовательная платформа</span>
             </div>
             
             <h1 className="text-6xl md:text-8xl font-bold mb-6 tracking-tight leading-tight drop-shadow-2xl">
-              Teacher's <br/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-gray-200 to-gray-500">Assistant</span>
+              Kepler Learn<br/>
+              <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-gray-200 to-gray-500"></span>
             </h1>
             
             <p className="text-xl md:text-2xl text-gray-300 mb-10 max-w-2xl mx-auto leading-relaxed font-light drop-shadow-md">
-              Создавайте квизы и получайте помощь от ИИ в минималистичном интерфейсе.
+              Школьный образовательный ресурс, упрощающий доступ к обучению.
             </p>
             
             <a 
@@ -242,7 +242,7 @@ export default function TeacherDashboard() {
         </section>
 
         <footer className="py-12 text-center text-gray-600 text-sm bg-gradient-to-t from-black to-transparent">
-          <p>© 2026 Teacher's Assistant. All rights reserved.</p>
+          <p>© 2026 Kepler Learn. Все права защищены.</p>
         </footer>
 
       </div>
