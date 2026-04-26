@@ -165,9 +165,7 @@ export default function TeacherDashboard() {
              <div className="relative z-10 flex flex-col md:flex-row items-center gap-12">
                 {/* Текст слева */}
                 <div className="flex-1 text-left">
-                  <div className="w-16 h-16 bg-indigo-500/20 rounded-xl flex items-center justify-center mb-6 border border-indigo-500/30">
-                    <span className="text-2xl font-bold text-indigo-300">AI</span>
-                  </div>
+                  
                   <h3 className="text-3xl md:text-4xl font-bold text-white mb-4 drop-shadow-lg">Чат с ИИ</h3>
                   <p className="text-lg text-gray-300 mb-8 leading-relaxed">
                     Ваш персональный ассистент для создания образовательного контента. Генерируйте вопросы, объясняйте сложные темы и получайте идеи для уроков за секунды. Поддержка Markdown и предпросмотр кода.
@@ -189,9 +187,6 @@ export default function TeacherDashboard() {
                         alt="AI Chat Interface" 
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6">
-                         <span className="text-white font-medium">Интерфейс чата с ИИ</span>
-                      </div>
                    </div>
                 </div>
              </div>
@@ -206,9 +201,7 @@ export default function TeacherDashboard() {
              <div className="relative z-10 flex flex-col md:flex-row-reverse items-center gap-12">
                 {/* Текст справа (для разнообразия) */}
                 <div className="flex-1 text-left md:text-right">
-                  <div className="w-16 h-16 bg-green-500/20 rounded-xl flex items-center justify-center mb-6 ml-auto md:ml-auto border border-green-500/30">
-                    <span className="text-2xl font-bold text-green-300">QZ</span>
-                  </div>
+                  
                   <h3 className="text-3xl md:text-4xl font-bold text-white mb-4 drop-shadow-lg">Создать Квиз</h3>
                   <p className="text-lg text-gray-300 mb-8 leading-relaxed">
                     Мощный конструктор тестов. Добавляйте текст, изображения, устанавливайте правильные ответы и получайте уникальный код для быстрого подключения учеников. Полная статистика и защита от списывания.
@@ -247,9 +240,7 @@ export default function TeacherDashboard() {
              <div className="relative z-10 flex flex-col md:flex-row items-center gap-12">
                 {/* Текст слева */}
                 <div className="flex-1 text-left">
-                  <div className="w-16 h-16 bg-yellow-500/20 rounded-xl flex items-center justify-center mb-6 border border-yellow-500/30">
-                    <span className="text-2xl font-bold text-yellow-300">ST</span>
-                  </div>
+                  
                   <h3 className="text-3xl md:text-4xl font-bold text-white mb-4 drop-shadow-lg">Я ученик</h3>
                   <p className="text-lg text-gray-300 mb-8 leading-relaxed">
                     Простой и быстрый вход в тест. Введите 6-значный код, который дал учитель, и начните проходить задания. Результаты видны сразу, а система анти-списывания обеспечивает честность.
