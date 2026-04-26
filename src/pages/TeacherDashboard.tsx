@@ -96,18 +96,18 @@ export default function TeacherDashboard() {
       <div className="relative z-10 flex-1 pt-24">
         
         {/* СЕКЦИЯ 1: ИНТРО */}
-        <section className="min-h-[calc(100vh-6rem)] flex flex-col items-center justify-center px-6 py-20">
-          <div className="max-w-4xl text-center animate-fade-in-up">
-            <div className="inline-block mb-8 px-6 py-2 border border-white/30 rounded-full bg-white/10 backdrop-blur-md shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+        <section className="min-h-[calc(100vh-6rem)] flex flex-col items-center justify-center px-6 py-12"> {/* Уменьшил py-20 до py-12 */}
+          <div className="max-w-4xl text-center animate-fade-in-up -mt-16"> {/* Добавил -mt-16 для подъема всего блока */}
+            <div className="inline-block mb-6 px-6 py-2 border border-white/30 rounded-full bg-white/10 backdrop-blur-md shadow-[0_0_15px_rgba(255,255,255,0.1)]">
               <span className="text-xs uppercase tracking-[0.2em] text-gray-200 font-semibold">Education Platform</span>
             </div>
             
-            <h1 className="text-6xl md:text-8xl font-bold mb-8 tracking-tight leading-tight drop-shadow-2xl">
+            <h1 className="text-6xl md:text-8xl font-bold mb-6 tracking-tight leading-tight drop-shadow-2xl">
               Teacher's <br/>
               <span className="text-transparent bg-clip-text bg-gradient-to-b from-white via-gray-200 to-gray-500">Assistant</span>
             </h1>
             
-            <p className="text-xl md:text-2xl text-gray-300 mb-12 max-w-2xl mx-auto leading-relaxed font-light drop-shadow-md">
+            <p className="text-xl md:text-2xl text-gray-300 mb-10 max-w-2xl mx-auto leading-relaxed font-light drop-shadow-md">
               Создавайте квизы и получайте помощь от ИИ в минималистичном интерфейсе.
             </p>
             
@@ -123,37 +123,7 @@ export default function TeacherDashboard() {
           </div>
         </section>
 
-        {/* СЕКЦИЯ 2: ВОЗМОЖНОСТИ (Карточки) */}
-        <section id="features" className="py-20 px-6">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-16 animate-fade-in-up">
-              <h2 className="text-4xl md:text-5xl font-bold mb-4 drop-shadow-lg">Инструменты</h2>
-              <div className="w-24 h-1 bg-gradient-to-r from-transparent via-white/50 to-transparent mx-auto rounded-full"></div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {features.map((feature, index) => (
-                <button
-                  key={feature.id}
-                  onClick={() => scrollToSection(feature.ref)}
-                  className={`group relative glass-panel rounded-3xl p-8 transition-all duration-500 flex flex-col items-center text-center h-full hover:bg-white/10 hover:border-white/40 hover:shadow-[0_8px_32px_0_rgba(255,255,255,0.1)] btn-press animate-fade-in-up`}
-                  style={{ animationDelay: `${index * 100}ms` }}
-                >
-                  <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/10 to-transparent opacity-50 pointer-events-none rounded-t-3xl"></div>
-                  
-                  <div className="relative z-10 w-24 h-24 bg-black/40 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500 border border-white/20 shadow-inner ring-1 ring-white/10">
-                    <span className="text-2xl font-bold text-gray-300 group-hover:text-white">{feature.icon}</span>
-                  </div>
-                  
-                  <h3 className="relative z-10 text-2xl font-bold text-white mb-3 drop-shadow-md">{feature.name}</h3>
-                  <p className="relative z-10 text-sm text-gray-400 group-hover:text-gray-200 transition-colors">
-                    Нажмите, чтобы узнать больше
-                  </p>
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
+        
 
         {/* --- ДЕТАЛЬНЫЕ СЕКЦИИ --- */}
         
