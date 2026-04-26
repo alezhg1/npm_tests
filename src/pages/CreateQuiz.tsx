@@ -103,11 +103,16 @@ export default function CreateQuiz() {
         if (q.image) {
           console.log(`3️⃣ Uploading image for question ${i + 1}...`);
           const fileExt = q.image.name.split('.').pop();
-          const fileName = `${createdQuiz.id}/${Date.now()}_${i}.${fileExt}`;
+          
+          // ИСПРАВЛЕНИЕ: Используем 'i' вместо 'index'
+          const fileName = `${createdQuiz.id}/q${i}_${Date.now()}.${fileExt}`;
           
           const { error: uploadError } = await supabase.storage
             .from('quiz-images')
-            .upload(fileName, q.image);
+            .upload(fileName, q.image, {
+               cacheControl: '3600',
+               upsert: false 
+            });
 
           if (uploadError) {
             console.error('Upload Error:', uploadError);
