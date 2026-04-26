@@ -5,7 +5,7 @@ import { marked } from 'marked';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/atom-one-dark.css';
 
-const ENCODED_KEY = "c2stb3ItdjEtZGJjZDA1Mzg1YzY3ZjllZWY1NjExNGNlM2Y5OGI5YjhiOTZlOGI1MGU2NDQ1OGRlMGFlMjNkMjkxZmYxMDhjMA==";
+const ENCODED_KEY = 'c2stb3ItdjEtYTBlODgwYjJkNTk1MDYyZTE1NWFlNWFjMTRkOTdjNTUxNDc2YzE4MTVjM2FjNmNkYTk1ZjU3YjhjMjY5ZDZiNQ==';
 const SYSTEM_PROMPT = `Ты — помощник учителя. Отвечай кратко и по делу.`;
 
 type Message = { role: 'user' | 'assistant'; content: string };
