@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import remarkGfm from 'remark-gfm';       // <-- ДОБАВИЛИ: для поддержки блоков кода с языком
 import hljs from 'highlight.js';
 import 'highlight.js/styles/atom-one-dark.css';
 import 'katex/dist/katex.min.css';
@@ -12,7 +13,8 @@ const ENCODED_KEY = 'c2stb3ItdjEtYTBlODgwYjJkNTk1MDYyZTE1NWFlNWFjMTRkOTdjNTUxNDc
 const SYSTEM_PROMPT = `Ты — помощник учителя. Отвечай кратко и по делу. 
 Если пользователь прислал изображение, проанализируй его содержание (например, реши задачу на фото или опиши график).
 ВАЖНО: Если тебе нужно написать математическую формулу, используй синтаксис LaTeX внутри знаков доллара. 
-Для строчных формул используй $...$, для блочных (отдельной строкой) используй $$...$$.`;
+Для строчных формул используй $...$, для блочных (отдельной строкой) используй $$...$$.
+Если ты генерируешь HTML-код, оборачивай его в блок кода с указанием языка: \`\`\`html ... \`\`\``;
 
 type MessageContent = 
   | { type: 'text'; text: string }
@@ -20,13 +22,105 @@ type MessageContent =
 
 type Message = { 
   role: 'user' | 'assistant'; 
-  content: string | MessageContent[]; // Теперь контент может быть массивом (текст + картинка)
+  content: string | MessageContent[];
+};
+
+// Компонент для рендеринга одного сообщения
+const RenderMessage = ({ msg }: { msg: Message }) => {
+  if (msg.role === 'assistant') {
+    const contentStr = typeof msg.content === 'string' ? msg.content : '';
+
+    return (
+      <div className="prose prose-invert prose-sm max-w-none">
+        <ReactMarkdown 
+          remarkPlugins={[remarkMath, remarkGfm]} 
+          rehypePlugins={[rehypeKatex]}
+          components={{
+            // Кастомный рендерер для блоков кода с языком html
+            code({ node, inline, className, children, ...props }) {
+              const match = /language-(\w+)/.exec(className || '');
+              const lang = match ? match[1] : '';
+
+              // Если это блок кода с языком html — рендерим как iframe
+              if (!inline && lang === 'html') {
+                const htmlCode = String(children).replace(/\n$/, '');
+                return (
+                  <div className="my-4 rounded-xl overflow-hidden border border-white/20 shadow-lg bg-black/30">
+                    <div className="bg-gray-800 px-3 py-2 text-xs text-gray-400 font-mono border-b border-white/10 flex justify-between items-center">
+                      <span>HTML Preview</span>
+                      <button 
+                        onClick={() => navigator.clipboard.writeText(htmlCode)}
+                        className="text-blue-400 hover:text-blue-300 transition-colors"
+                        title="Копировать код"
+                      >
+                        📋 Copy
+                      </button>
+                    </div>
+                    <iframe
+                      srcDoc={htmlCode}
+                      title="HTML Preview"
+                      className="w-full h-64 bg-white"
+                      sandbox="allow-scripts allow-same-origin" // Безопасность: только скрипты и same-origin
+                      style={{ border: 'none' }}
+                    />
+                  </div>
+                );
+              }
+
+              // Для остальных языков — стандартная подсветка синтаксиса
+              return (
+                <code className={`${className} bg-black/50 px-1 py-0.5 rounded text-sm`} {...props}>
+                  {children}
+                </code>
+              );
+            },
+            // Кастомный рендерер для обычных текстовых блоков кода (без языка)
+            pre({ children }) {
+              return <pre className="bg-black/50 p-4 rounded-xl overflow-x-auto my-4">{children}</pre>;
+            }
+          }}
+        >
+          {contentStr}
+        </ReactMarkdown>
+      </div>
+    );
+  } else {
+    // Сообщение пользователя — может содержать текст и картинки
+    try {
+      const contentArr = JSON.parse(msg.content as string);
+      if (Array.isArray(contentArr)) {
+        return (
+          <div className="flex flex-col gap-2">
+            {contentArr.map((item: MessageContent, idx) => {
+              if (item.type === 'image_url') {
+                return (
+                  <img 
+                    key={idx} 
+                    src={item.image_url.url} 
+                    alt="Uploaded" 
+                    className="max-w-full h-auto rounded-lg border border-white/20 shadow-md max-h-64 object-contain bg-black/20"
+                  />
+                );
+              }
+              if (item.type === 'text') {
+                return <p key={idx}>{item.text}</p>;
+              }
+              return null;
+            })}
+          </div>
+        );
+      }
+    } catch {
+      return <p>{msg.content as string}</p>;
+    }
+  }
+  return null;
 };
 
 export default function AiChat() {
   const [messages, setMessages] = useState<Message[]>([{ 
     role: 'assistant', 
-    content: 'Привет! Чем могу помочь? Ты можешь прислать мне фото задачи, и я помогу её решить. Например: $E=mc^2$.' 
+    content: 'Привет! Чем могу помочь? Ты можешь прислать мне фото задачи, и я помогу её решить. Например: $E=mc^2$. Или попроси сгенерировать HTML-страницу — я покажу её превью!' 
   }]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -44,13 +138,11 @@ export default function AiChat() {
     hljs.highlightAll(); 
   }, [messages]);
 
-  // Обработка выбора файла
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setSelectedFile(file);
       
-      // Создаем превью для отображения в чате
       const reader = new FileReader();
       reader.onloadend = () => {
         setFilePreview(reader.result as string);
@@ -59,7 +151,6 @@ export default function AiChat() {
     }
   };
 
-  // Удаление выбранного файла
   const clearFile = () => {
     setSelectedFile(null);
     setFilePreview(null);
@@ -72,13 +163,12 @@ export default function AiChat() {
     
     setIsLoading(true);
 
-    // Формируем контент сообщения пользователя
     let userContent: MessageContent[] = [];
     
     if (selectedFile && filePreview) {
       userContent.push({
         type: 'image_url',
-        image_url: { url: filePreview } // Отправляем base64 строку
+        image_url: { url: filePreview }
       });
     }
     
@@ -89,26 +179,12 @@ export default function AiChat() {
       });
     }
 
-    // Добавляем сообщение в интерфейс
-    // Для отображения в UI мы сохраняем "человеческое" представление
     const displayMessage: Message = {
       role: 'user',
-      content: userContent // Сохраняем структуру для истории, но при рендеринге будем обрабатывать иначе
+      content: JSON.stringify(userContent)
     };
     
-    // Хак для простого отображения в текущем интерфейсе:
-    // Мы добавим объект с флагом isImage, чтобы компонент рендеринга понял, что это картинка
-    // Но для отправки в API нам нужна чистая структура.
-    
-    // Чтобы не усложнять рендеринг сообщений, давайте сохраним в state немного другую структуру для UI,
-    // но для API соберем правильную.
-    
-    // Обновляем стейт сообщений для UI
-    setMessages(prev => [...prev, { 
-      role: 'user', 
-      content: JSON.stringify(userContent) // Временный хак: сериализуем, чтобы отличить от обычного текста. 
-                                           // В идеале нужно изменить тип Message, но сделаем проще для совместимости.
-    }]);
+    setMessages(prev => [...prev, displayMessage]);
 
     setInputValue('');
     clearFile();
@@ -116,12 +192,8 @@ export default function AiChat() {
     try {
       const apiKey = atob(ENCODED_KEY);
       
-      // Подготовка сообщений для API
-      // Нам нужно преобразовать наши сохраненные сообщения обратно в формат API
       const apiMessages = messages.map(m => {
-        // Если это старое текстовое сообщение
         if (typeof m.content === 'string') {
-           // Проверяем, не является ли это нашим "закодированным" сообщением с картинкой
            try {
              const parsed = JSON.parse(m.content);
              if (Array.isArray(parsed) && parsed.some((item: any) => item.type === 'image_url')) {
@@ -130,10 +202,9 @@ export default function AiChat() {
            } catch {}
            return { role: m.role, content: [{ type: 'text', text: m.content }] };
         }
-        return m; // Если уже в нужном формате
+        return m;
       });
 
-      // Добавляем текущее новое сообщение
       apiMessages.push({ role: 'user', content: userContent });
 
       const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -145,7 +216,7 @@ export default function AiChat() {
           "X-Title": "Teacher Assistant"
         },
         body: JSON.stringify({ 
-          model: "google/gemini-2.0-flash-001", // Поддерживает картинки
+          model: "google/gemini-2.0-flash-001",
           messages: [
             { role: "system", content: [{ type: 'text', text: SYSTEM_PROMPT }] }, 
             ...apiMessages
@@ -177,59 +248,12 @@ export default function AiChat() {
     }
   };
 
-  // Компонент для рендеринга одного сообщения
-  const RenderMessage = ({ msg }: { msg: Message }) => {
-    if (msg.role === 'assistant') {
-      return (
-        <div className="prose prose-invert prose-sm max-w-none">
-          <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-            {typeof msg.content === 'string' ? msg.content : ''}
-          </ReactMarkdown>
-        </div>
-      );
-    } else {
-      // Это сообщение пользователя
-      // Пробуем распарсить наш "хак" с JSON
-      try {
-        const contentArr = JSON.parse(msg.content as string);
-        if (Array.isArray(contentArr)) {
-          return (
-            <div className="flex flex-col gap-2">
-              {contentArr.map((item: MessageContent, idx) => {
-                if (item.type === 'image_url') {
-                  return (
-                    <img 
-                      key={idx} 
-                      src={item.image_url.url} 
-                      alt="Uploaded" 
-                      className="max-w-full h-auto rounded-lg border border-white/20 shadow-md max-h-64 object-contain bg-black/20"
-                    />
-                  );
-                }
-                if (item.type === 'text') {
-                  return <p key={idx}>{item.text}</p>;
-                }
-                return null;
-              })}
-            </div>
-          );
-        }
-      } catch {
-        // Если парсинг не удался, значит это обычный текст
-        return <p>{msg.content as string}</p>;
-      }
-    }
-    return null;
-  };
-
   return (
     <div className="flex flex-col h-screen bg-black relative">
-      {/* Версия */}
       <div className="fixed top-6 left-6 z-50 text-white/30 text-xs font-mono tracking-widest pointer-events-none select-none">
         v0.1.0
       </div>
 
-      {/* Фон */}
       <div className="fixed inset-0 z-0">
         <img 
           src="/main_back.png" 
@@ -277,7 +301,6 @@ export default function AiChat() {
       <footer className="p-4 border-t border-white/10 bg-black/50 backdrop-blur-md z-10">
         <form onSubmit={handleSend} className="max-w-4xl mx-auto flex flex-col gap-3">
           
-          {/* Превью выбранного файла */}
           {filePreview && (
             <div className="relative inline-block self-start group">
               <img src={filePreview} alt="Preview" className="h-20 w-auto rounded-lg border border-white/30 shadow-lg bg-black/20" />
@@ -292,7 +315,6 @@ export default function AiChat() {
           )}
 
           <div className="flex gap-3 items-end">
-            {/* Кнопка загрузки файла */}
             <input 
               type="file" 
               accept="image/*" 
