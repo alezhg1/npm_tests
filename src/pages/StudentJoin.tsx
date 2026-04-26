@@ -22,7 +22,6 @@ export default function StudentJoin() {
     console.log('🔍 Trying to join with code:', cleanCode);
 
     try {
-      // 1. Ищем квиз по коду
       const response = await supabase
         .from('quizzes')
         .select('id, title, status, join_code')
@@ -43,7 +42,6 @@ export default function StudentJoin() {
         throw new Error('Этот квиз уже завершён.');
       }
 
-      // 2. Добавляем ученика в список участников
       console.log('➕ Adding participant:', studentName);
       
       const participantResponse = await supabase
@@ -65,12 +63,11 @@ export default function StudentJoin() {
 
       console.log('✅ Participant Created ID:', participant.id);
 
-      // 3. Перенаправляем, передавая ID участника!
       navigate(`/quiz/${quiz.id}`, { 
         state: { 
           studentName, 
           quizTitle: quiz.title,
-          participantId: participant.id // <-- КЛЮЧЕВОЙ МОМЕНТ
+          participantId: participant.id
         } 
       });
 
@@ -92,7 +89,7 @@ export default function StudentJoin() {
       {/* Фон */}
       <div className="fixed inset-0 z-0">
         <img 
-          src="/main_back.png" 
+          src="/create_page.png" 
           alt="Background" 
           className="w-full h-full object-cover opacity-80 contrast-125 brightness-110 saturate-110"
         />
@@ -101,57 +98,76 @@ export default function StudentJoin() {
         <div className="absolute bottom-[-10%] right-[-10%] w-[700px] h-[700px] bg-purple-500/10 rounded-full blur-[180px] pointer-events-none mix-blend-screen"></div>
       </div>
 
-      <div className="w-full max-w-md glass-panel p-8 md:p-12 relative z-10 animate-fade-in-up">
-        <div className="text-center mb-10">
-          <h1 className="text-3xl font-bold mb-2 drop-shadow-lg">Вход для ученика</h1>
-          <p className="text-gray-500 text-sm">Введите код квиза, чтобы начать</p>
+      {/* Основной контейнер с формой и изображением */}
+      <div className="relative z-10 flex flex-col lg:flex-row items-center justify-center gap-8 max-w-6xl w-full animate-fade-in-up">
+        
+        {/* Форма входа */}
+        <div className="w-full lg:w-[500px] glass-panel p-8 md:p-12 rounded-3xl shadow-2xl border border-white/10 flex-shrink-0">
+          <div className="text-center mb-10">
+            <h1 className="text-3xl md:text-4xl font-bold mb-2 drop-shadow-lg">Вход для ученика</h1>
+            <p className="text-gray-500 text-sm md:text-base">Введите код квиза, чтобы начать</p>
+          </div>
+
+          {error && (
+            <div className="mb-6 p-3 bg-red-500/10 border border-red-500/30 text-red-300 text-sm rounded-lg animate-pulse">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleJoin} className="space-y-6">
+            <div>
+              <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">Код квиза</label>
+              <input
+                type="text"
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                placeholder="НАПРИМЕР: A1B2C3"
+                className="w-full bg-black/50 border border-white/20 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder-gray-600 text-2xl tracking-widest font-mono text-center"
+                maxLength={6}
+                autoFocus
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">Ваше имя</label>
+              <input
+                type="text"
+                value={studentName}
+                onChange={(e) => setStudentName(e.target.value)}
+                placeholder="Иван Петров"
+                className="w-full bg-black/50 border border-white/20 text-white px-4 py-3 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder-gray-600"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all duration-300 btn-press disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? 'Подключение...' : 'Присоединиться'}
+            </button>
+          </form>
+
+          <div className="mt-8 text-center">
+            <Link to="/" className="text-gray-600 hover:text-white text-xs uppercase tracking-widest transition-colors border-b border-transparent hover:border-white pb-1 btn-press">
+              ← Вернуться на главную
+            </Link>
+          </div>
         </div>
 
-        {error && (
-          <div className="mb-6 p-3 bg-red-500/10 border border-red-500/30 text-red-300 text-sm rounded-lg animate-pulse">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleJoin} className="space-y-6">
-          <div>
-            <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">Код квиза</label>
-            <input
-              type="text"
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-              placeholder="НАПРИМЕР: A1B2C3"
-              className="w-full bg-black/50 border border-white/20 text-white px-4 py-3 rounded-lg focus:outline-none focus:border-white/50 transition-colors placeholder-gray-600 text-2xl tracking-widest font-mono text-center"
-              maxLength={6}
-              autoFocus
+        {/* Изображение справа (только на десктопе) */}
+        <div className="hidden lg:block lg:w-[500px] flex-shrink-0">
+          <div className="relative group">
+            <img 
+              src="/join_page.gif" 
+              alt="Join Page Animation" 
+              className="w-full h-auto rounded-3xl shadow-2xl border border-white/10 object-cover transform group-hover:scale-105 transition-transform duration-500"
             />
+            {/* Декоративный элемент под изображением */}
+            <div className="absolute -bottom-4 -right-4 w-full h-full bg-indigo-500/10 rounded-3xl -z-10 blur-xl"></div>
           </div>
-
-          <div>
-            <label className="block text-xs uppercase tracking-widest text-gray-500 mb-2">Ваше имя</label>
-            <input
-              type="text"
-              value={studentName}
-              onChange={(e) => setStudentName(e.target.value)}
-              placeholder="Иван Петров"
-              className="w-full bg-black/50 border border-white/20 text-white px-4 py-3 rounded-lg focus:outline-none focus:border-white/50 transition-colors placeholder-gray-600"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-white text-black font-bold py-4 rounded-lg hover:bg-gray-200 transition-all duration-300 shadow-lg hover:shadow-white/20 btn-press disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? 'Подключение...' : 'Присоединиться'}
-          </button>
-        </form>
-
-        <div className="mt-8 text-center">
-          <Link to="/" className="text-gray-600 hover:text-white text-xs uppercase tracking-widest transition-colors border-b border-transparent hover:border-white pb-1 btn-press">
-            ← Вернуться на главную
-          </Link>
         </div>
+
       </div>
     </div>
   );
