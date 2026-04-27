@@ -56,15 +56,49 @@ app.all('/api/participants', async (req, res) => {
   try {
     if (req.method === 'GET') {
       const { quizId } = req.query;
-      const { data, error } = await supabase.from('quiz_participants').select('*').eq('quiz_id', quizId);
+      if (!quizId) return res.status(400).json({ error: 'Missing quizId' });
+      
+      const { data, error } = await supabase
+        .from('quiz_participants')
+        .select('*')
+        .eq('quiz_id', quizId)
+        .order('joined_at', { ascending: true }); // Убедись, что колонка joined_at существует, иначе убери .order()
+        
       if (error) throw error;
       return res.json(data);
-    } else if (req.method === 'POST') {
-      const { data, error } = await supabase.from('quiz_participants').insert([req.body]).select().single();
-      if (error) throw error;
+    } 
+    
+    else if (req.method === 'POST') {
+      const { quiz_id, student_name, score } = req.body;
+      
+      if (!quiz_id || !student_name) {
+        return res.status(400).json({ error: 'Missing quiz_id or student_name' });
+      }
+
+      // Формируем объект для вставки. Не передаем id и joined_at, если они автогенерируются в БД
+      const participantData = {
+        quiz_id: quiz_id,
+        student_name: student_name,
+        score: score !== undefined ? score : 0
+      };
+
+      console.log('💾 Inserting participant:', participantData);
+
+      const { data, error } = await supabase
+        .from('quiz_participants')
+        .insert([participantData])
+        .select()
+        .single();
+        
+      if (error) {
+        console.error('❌ Supabase Error:', error);
+        return res.status(500).json({ error: error.message, details: error.details });
+      }
+      
       return res.status(201).json(data);
     }
   } catch (err) {
+    console.error('🔥 Server Error in /api/participants:', err);
     res.status(500).json({ error: err.message });
   }
 });

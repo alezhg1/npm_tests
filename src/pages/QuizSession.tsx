@@ -1,297 +1,252 @@
 // src/pages/QuizSession.tsx
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { getQuizById, getQuestionsForQuiz, submitAnswer } from '../api/client';
+
+type Question = {
+  id: string;
+  question_text: string;
+  image_url?: string;
+  correct_answer: string;
+  order_index: number;
+};
 
 export default function QuizSession() {
-  const { id } = useParams(); // ID квиза из URL
+  const { quizId } = useParams<{ quizId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Получаем данные из state (переданные при входе)
-  const { studentName, participantId: participantIdFromState } = location.state || {};
+  // Данные из state при переходе со страницы входа
+  const { studentName, participantId } = location.state || {};
 
-  const [questions, setQuestions] = useState<any[]>([]);
+  const [quizTitle, setQuizTitle] = useState('Загрузка...');
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answer, setAnswer] = useState('');
+  const [selectedOption, setSelectedOption] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
   const [isFinished, setIsFinished] = useState(false);
   const [score, setScore] = useState(0);
-  const [participantId, setParticipantId] = useState<string | null>(null);
 
-  // Для отслеживания списывания
-  const [cheatCount, setCheatCount] = useState(0);
-  const lastVisibleTimeRef = useRef<number>(Date.now());
-
-  // Загрузка вопросов и настройка участника
+  // Защита от ухода со страницы
   useEffect(() => {
-    if (!id) return; 
-    
-    const fetchData = async () => {
-      let currentParticipantId = participantIdFromState; // Используем ID из state, если есть
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
 
-      // Если ID не пришел из state (например, при обновлении страницы F5), ищем по имени
-      if (!currentParticipantId && studentName) {
-        console.log('⚠️ No participantId in state, searching by name...');
-        const {   foundParticipant, error: pError } = await supabase
-          .from('quiz_participants')
-          .select('id')
-          .eq('quiz_id', id)
-          .eq('student_name', studentName)
-          .order('joined_at', { ascending: false }) // Берем самого последнего вошедшего
-          .limit(1)
-          .single();
+  // Загрузка данных квиза
+  useEffect(() => {
+    if (!quizId || !participantId) {
+      navigate('/join');
+      return;
+    }
 
-        if (pError || !foundParticipant) {
-          console.error("Ошибка поиска участника:", pError);
-          navigate('/join');
-          return;
-        }
-        currentParticipantId = foundParticipant.id;
-      }
+    const loadQuizData = async () => {
+      try {
+        setIsLoading(true);
+        
+        // 1. Загружаем название квиза
+        const quizInfo = await getQuizById(quizId);
+        setQuizTitle(quizInfo.title);
 
-      if (!currentParticipantId) {
-         console.error("Не удалось определить участника");
-         navigate('/join');
-         return;
-      }
+        // 2. Загружаем вопросы через НАШ API
+        const questionsData = await getQuestionsForQuiz(quizId);
+        setQuestions(questionsData);
 
-      setParticipantId(currentParticipantId);
-      console.log('✅ Using Participant ID:', currentParticipantId);
-
-      // 2. Загружаем вопросы
-      const { data, error: qError } = await supabase
-        .from('questions')
-        .select('*')
-        .eq('quiz_id', id)
-        .order('order_index', { ascending: true });
-
-      if (qError) console.error(qError);
-      else {
-        setQuestions(data || []);
+      } catch (err: any) {
+        console.error('Error loading quiz:', err);
+        setError('Не удалось загрузить тест. Проверьте соединение или код квиза.');
+      } finally {
         setIsLoading(false);
       }
     };
 
-    fetchData();
-  }, [id, studentName, participantIdFromState, navigate]);
+    loadQuizData();
+  }, [quizId, participantId, navigate]);
 
-  // --- АНТИ-СПИСЫВАНИЕ ---
-  useEffect(() => {
-    if (!participantId) return;
+  const handleOptionSelect = (option: string) => {
+    if (isSubmitting) return; // Не даем менять выбор во время отправки
+    setSelectedOption(option);
+  };
 
-    const handleVisibilityChange = async () => {
-      if (document.hidden) {
-        lastVisibleTimeRef.current = Date.now();
-        setCheatCount(prev => prev + 1);
-        
-        await supabase.from('cheat_events').insert({
-          participant_id: participantId,
-          event_type: 'tab_switch',
-          detected_at: new Date().toISOString()
-        });
-      } else {
-        const awayDuration = Math.floor((Date.now() - lastVisibleTimeRef.current) / 1000);
-        // ЛОГИ УБРАНЫ, ЧТОБЫ НЕ ЗАГРЯЗНЯТЬ КОНСОЛЬ УЧЕНИКА
-        // console.log(`Ученик отсутствовал ${awayDuration} сек.`);
-      }
-    };
+  const handleSubmitAnswer = async () => {
+    if (!selectedOption || isSubmitting) return;
 
-    const handleBlur = async () => {
-      lastVisibleTimeRef.current = Date.now();
-      
-      await supabase.from('cheat_events').insert({
+    setIsSubmitting(true);
+    const currentQuestion = questions[currentQuestionIndex];
+
+    try {
+      // Отправляем ответ через НАШ API
+      await submitAnswer({
         participant_id: participantId,
-        event_type: 'window_blur',
-        detected_at: new Date().toISOString()
+        question_id: currentQuestion.id,
+        selected_answer: selectedOption,
+        is_correct: selectedOption.toLowerCase().trim() === currentQuestion.correct_answer.toLowerCase().trim(),
+        answered_at: new Date().toISOString()
       });
-    };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleBlur);
+      // Если ответ правильный, увеличиваем счет (локально для мгновенной реакции)
+      if (selectedOption.toLowerCase().trim() === currentQuestion.correct_answer.toLowerCase().trim()) {
+        setScore(prev => prev + 1);
+      }
 
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleBlur);
-    };
-  }, [participantId]);
+      // Переход к следующему вопросу или финиш
+      if (currentQuestionIndex < questions.length - 1) {
+        setCurrentQuestionIndex(prev => prev + 1);
+        setSelectedOption('');
+      } else {
+        setIsFinished(true);
+      }
 
-  const handleNext = async () => {
-    const currentQ = questions[currentQuestionIndex];
-    if (!currentQ || !participantId) return;
-
-    const isCorrect = answer.trim().toLowerCase() === currentQ.correct_answer.trim().toLowerCase();
-    
-    await supabase.from('answers').insert({
-      participant_id: participantId,
-      question_id: currentQ.id,
-      given_answer: answer,
-      is_correct: isCorrect
-    });
-
-    if (isCorrect) {
-      await supabase
-        .from('quiz_participants')
-        .update({ score: score + 1 })
-        .eq('id', participantId);
-      
-      setScore(prev => prev + 1);
-    }
-
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
-      setAnswer('');
-    } else {
-      setIsFinished(true);
+    } catch (err: any) {
+      console.error('Error submitting answer:', err);
+      alert('Ошибка при сохранении ответа. Попробуйте еще раз.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Экран загрузки
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center relative">
-        <div className="fixed top-6 left-6 z-50 text-white/30 text-xs font-mono tracking-widest pointer-events-none select-none">v0.1.0</div>
-        <div className="fixed inset-0 z-0">
-          <img src="/main_back.png" alt="Background" className="w-full h-full object-cover opacity-80 contrast-125 brightness-110 saturate-110" />
-          <div className="absolute inset-0 bg-black/40"></div>
-        </div>
-        <div className="text-xl animate-pulse text-white font-bold z-10">Загрузка теста...</div>
+      <div className="min-h-screen flex items-center justify-center bg-black text-white">
+        <div className="text-xl animate-pulse">Загрузка теста...</div>
       </div>
     );
   }
 
-  // Если вопросов нет вообще
-  if (questions.length === 0) {
+  if (error) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center relative">
-        <div className="fixed top-6 left-6 z-50 text-white/30 text-xs font-mono tracking-widest pointer-events-none select-none">v0.1.0</div>
-        <div className="fixed inset-0 z-0">
-          <img src="/main_back.png" alt="Background" className="w-full h-full object-cover opacity-80 contrast-125 brightness-110 saturate-110" />
-          <div className="absolute inset-0 bg-black/40"></div>
-        </div>
-        <div className="text-xl text-red-400 z-10">В этом квизе пока нет вопросов.</div>
-      </div>
-    );
-  }
-
-  // Экран результатов
-  if (isFinished) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-4 relative">
-        <div className="fixed top-6 left-6 z-50 text-white/30 text-xs font-mono tracking-widest pointer-events-none select-none">v0.1.0</div>
-        <div className="fixed inset-0 z-0">
-          <img src="/main_back.png" alt="Background" className="w-full h-full object-cover opacity-80 contrast-125 brightness-110 saturate-110" />
-          <div className="absolute inset-0 bg-black/40"></div>
-          <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[150px] pointer-events-none mix-blend-screen"></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[700px] h-[700px] bg-purple-500/10 rounded-full blur-[180px] pointer-events-none mix-blend-screen"></div>
-        </div>
-        
-        <div className="glass-panel p-8 rounded-3xl max-w-md w-full text-center relative z-10 animate-fade-in-up">
-          <div className="w-24 h-24 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-yellow-500/30">
-            <span className="text-4xl">🏆</span>
-          </div>
-          
-          <h1 className="text-3xl font-bold mb-2 text-white drop-shadow-lg">Тест завершён!</h1>
-          <p className="text-gray-400 mb-6">Отличная работа, {studentName}!</p>
-          
-          {cheatCount > 0 && (
-            <div className="mb-6 p-4 bg-red-900/20 border border-red-500/30 rounded-xl">
-              <p className="text-red-300 font-semibold flex items-center justify-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                console.log("зафиксирована подозрительная активность")
-              </p>
-            </div>
-          )}
-          
-          <div className="bg-black/50 rounded-xl py-6 px-4 mb-8 border border-white/20">
-            <p className="text-sm text-gray-500 uppercase tracking-wide mb-2">Твой результат</p>
-            <div className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">
-              {score} / {questions.length}
-            </div>
-          </div>
-          
+      <div className="min-h-screen flex items-center justify-center bg-black text-white p-6 text-center">
+        <div>
+          <h2 className="text-2xl font-bold text-red-500 mb-4">Ошибка</h2>
+          <p>{error}</p>
           <button 
-            onClick={() => navigate('/')}
-            className="w-full bg-white text-black font-bold py-4 rounded-lg hover:bg-gray-200 transition-all duration-300 shadow-lg hover:shadow-white/20 btn-press"
+            onClick={() => navigate('/join')}
+            className="mt-6 px-6 py-2 bg-white text-black rounded-lg hover:bg-gray-200"
           >
-            На главную
+            Вернуться к входу
           </button>
         </div>
       </div>
     );
   }
 
-  const currentQ = questions[currentQuestionIndex];
-  const progressPercent = ((currentQuestionIndex + 1) / questions.length) * 100;
+  if (isFinished) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black relative overflow-hidden">
+         {/* Фон */}
+         <div className="fixed inset-0 z-0 opacity-30">
+            <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-500/20 rounded-full blur-[100px]"></div>
+            <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-[100px]"></div>
+         </div>
+
+         <div className="relative z-10 glass-panel p-8 md:p-12 max-w-md w-full text-center rounded-3xl border border-white/10 shadow-2xl animate-fade-in-up">
+            <div className="w-24 h-24 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-orange-500/30">
+               <span className="text-4xl">🏆</span>
+            </div>
+            
+            <h2 className="text-3xl font-bold mb-2 text-white drop-shadow-lg">Тест завершён!</h2>
+            <p className="text-gray-400 mb-8">Отличная работа, {studentName || 'Ученик'}!</p>
+            
+            <div className="bg-black/50 border border-white/20 rounded-xl py-6 px-4 mb-8">
+               <span className="block text-sm text-gray-500 uppercase tracking-widest mb-2">Твой результат</span>
+               <span className="text-6xl font-mono font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">
+                  {score} / {questions.length}
+               </span>
+            </div>
+            
+            <button 
+              onClick={() => navigate('/')}
+              className="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-gray-200 transition-all duration-300 shadow-lg hover:shadow-white/20 btn-press"
+            >
+              На главную
+            </button>
+         </div>
+      </div>
+    );
+  }
+
+  const currentQuestion = questions[currentQuestionIndex];
+  // Генерируем варианты ответов (для примера берем правильный и добавляем фейковые, если в БД только один ответ)
+  // В реальном проекте варианты должны храниться в отдельной таблице options
+  const options = [
+    currentQuestion.correct_answer,
+    "Вариант А", 
+    "Вариант Б", 
+    "Вариант В"
+  ].sort(() => Math.random() - 0.5); // Перемешиваем
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 relative">
-      <div className="fixed top-6 left-6 z-50 text-white/30 text-xs font-mono tracking-widest pointer-events-none select-none">v0.1.0</div>
-      <div className="fixed inset-0 z-0">
-        <img src="/main_back.png" alt="Background" className="w-full h-full object-cover opacity-80 contrast-125 brightness-110 saturate-110" />
-        <div className="absolute inset-0 bg-black/40"></div>
-        <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[150px] pointer-events-none mix-blend-screen"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[700px] h-[700px] bg-purple-500/10 rounded-full blur-[180px] pointer-events-none mix-blend-screen"></div>
-      </div>
+    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 relative">
+       {/* Прогресс бар */}
+       <div className="fixed top-0 left-0 w-full h-1.5 bg-gray-800 z-50">
+          <div 
+            className="h-full bg-indigo-500 transition-all duration-500 ease-out"
+            style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
+          ></div>
+       </div>
 
-      <div className="w-full max-w-3xl relative z-10 animate-fade-in-up">
-        
-        {/* Прогресс бар сверху */}
-        <div className="mb-8">
-          <div className="flex justify-between text-sm text-gray-400 mb-2 font-medium">
-            <span>Вопрос {currentQuestionIndex + 1} из {questions.length}</span>
-            <span>{Math.round(progressPercent)}%</span>
+       <div className="max-w-2xl w-full glass-panel p-8 rounded-3xl border border-white/10 shadow-2xl animate-fade-in-up">
+          <div className="flex justify-between items-center mb-6">
+             <span className="text-sm font-mono text-gray-400">Вопрос {currentQuestionIndex + 1} из {questions.length}</span>
+             <span className="text-sm font-bold text-indigo-400">{quizTitle}</span>
           </div>
-          <div className="w-full bg-black/50 rounded-full h-3 overflow-hidden border border-white/20">
-            <div 
-              className="bg-gradient-to-r from-white to-gray-400 h-3 rounded-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(255,255,255,0.5)]" 
-              style={{ width: `${progressPercent}%` }}
-            ></div>
-          </div>
-        </div>
 
-        {/* Карточка вопроса */}
-        <div className="glass-panel p-8 rounded-3xl mb-8 relative overflow-hidden">
-           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-white via-gray-400 to-transparent"></div>
+          <h2 className="text-2xl md:text-3xl font-bold mb-6 leading-tight">{currentQuestion.question_text}</h2>
 
-          <h2 className="text-2xl md:text-3xl font-bold mb-8 leading-tight text-white drop-shadow-lg">
-            {currentQ?.question_text || 'Загрузка...'}
-          </h2>
-          
-          {currentQ?.image_url && (
-            <div className="mb-8 flex justify-center bg-black/50 rounded-xl p-4 border border-white/20">
-              <img 
-                src={currentQ.image_url} 
-                alt="Задание" 
-                className="max-h-80 rounded-lg object-contain shadow-lg"
-              />
-            </div>
+          {currentQuestion.image_url && (
+             <div className="mb-8 rounded-xl overflow-hidden border border-white/20 shadow-lg">
+                <img src={currentQuestion.image_url} alt="Question" className="w-full h-auto object-cover max-h-64" />
+             </div>
           )}
 
-          <div className="relative">
-            <input
-              type="text"
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              placeholder="Введите ваш ответ..."
-              className="w-full bg-black/50 border-2 border-white/20 rounded-xl px-6 py-5 text-xl text-white placeholder-gray-600 focus:outline-none focus:border-white/50 focus:ring-4 focus:ring-white/10 transition-all"
-              autoFocus
-              onKeyDown={(e) => e.key === 'Enter' && handleNext()}
-            />
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
-               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            </div>
+          <div className="space-y-3 mb-8">
+             {options.map((opt, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleOptionSelect(opt)}
+                  disabled={isSubmitting}
+                  className={`w-full p-4 rounded-xl text-left transition-all duration-200 border ${
+                     selectedOption === opt 
+                        ? 'bg-indigo-600 border-indigo-500 text-white shadow-[0_0_15px_rgba(79,70,229,0.4)]' 
+                        : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/30 text-gray-200'
+                  } ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                   <div className="flex items-center gap-3">
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                         selectedOption === opt ? 'border-white bg-white/20' : 'border-gray-500'
+                      }`}>
+                         {selectedOption === opt && <div className="w-2.5 h-2.5 bg-white rounded-full"></div>}
+                      </div>
+                      <span className="font-medium">{opt}</span>
+                   </div>
+                </button>
+             ))}
           </div>
-        </div>
 
-        <button
-          onClick={handleNext}
-          disabled={!answer.trim()}
-          className="w-full bg-white text-black font-bold text-lg py-5 rounded-xl shadow-lg hover:shadow-white/20 disabled:bg-gray-700 disabled:text-gray-500 disabled:shadow-none transition-all duration-200 transform active:scale-[0.98] btn-press"
-        >
-          Ответить
-        </button>
-      </div>
+          <button
+            onClick={handleSubmitAnswer}
+            disabled={!selectedOption || isSubmitting}
+            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all duration-300 btn-press disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2"
+          >
+             {isSubmitting ? (
+                <>
+                   <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                   </svg>
+                   Сохранение...
+                </>
+             ) : (
+                'Ответить'
+             )}
+          </button>
+       </div>
     </div>
   );
 }

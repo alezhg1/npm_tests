@@ -1,6 +1,13 @@
 // src/api/client.js
 
+// Проверяем, запущен ли проект локально (Vite) или на продакшене
+const isDev = import.meta.env.DEV;
+
+// В разработке используем прокси Vite (/api), который перенаправляет на localhost:3001
+// На продакшене (Vercel) /api будет обрабатываться Serverless Functions
 const API_BASE = '/api'; 
+
+console.log('🔗 API Base URL:', API_BASE);
 
 // --- QUIZZES ---
 export async function getQuizByCode(code) {
@@ -53,6 +60,13 @@ export async function saveQuestion(questionData) {
   return res.json();
 }
 
+// НОВАЯ ФУНКЦИЯ: Получить вопросы для ученика
+export async function getQuestionsForQuiz(quizId) {
+  const res = await fetch(`${API_BASE}/questions?quizId=${quizId}`);
+  if (!res.ok) throw new Error('Failed to fetch questions');
+  return res.json();
+}
+
 // --- ANSWERS ---
 export async function submitAnswer(answerData) {
   const res = await fetch(`${API_BASE}/answers`, {
@@ -60,7 +74,16 @@ export async function submitAnswer(answerData) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(answerData),
   });
-  if (!res.ok) throw new Error('Failed to submit answer');
+  
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    // Если ошибка 409 (конфликт дубликатов), считаем это успехом (ответ уже есть)
+    if (res.status === 409) {
+      console.warn('⚠️ Duplicate answer detected, but proceeding.');
+      return { warning: 'Duplicate' };
+    }
+    throw new Error(err.error || 'Failed to submit answer');
+  }
   return res.json();
 }
 
@@ -69,7 +92,6 @@ export async function getAnswers(quizId) {
   if (!res.ok) throw new Error('Failed to fetch answers');
   return res.json();
 }
-
 
 // --- UPLOAD IMAGE ---
 export async function uploadImage(base64Image, fileName, quizId) {
