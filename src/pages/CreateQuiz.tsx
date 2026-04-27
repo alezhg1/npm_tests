@@ -1,7 +1,8 @@
 // src/pages/CreateQuiz.tsx
 import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+// Убираем импорт supabase, он нам больше не нужен для логики, только если где-то остался
+import { createQuiz, saveQuestion, uploadImage } from '../api/client'; 
 
 type Question = {
   text: string;
@@ -10,7 +11,6 @@ type Question = {
 };
 
 export default function CreateQuiz() {
-  // Состояния формы
   const [title, setTitle] = useState('');
   const [questions, setQuestions] = useState<Question[]>([
     { text: '', image: null, correctAnswer: '' }
@@ -19,7 +19,6 @@ export default function CreateQuiz() {
   const [joinCode, setJoinCode] = useState<string | null>(null);
   const [quizData, setQuizData] = useState<any>(null);
   
-  // Рефы для превью изображений
   const imagePreviewRefs = useRef<{[key: number]: string}>({});
 
   const addQuestion = () => {
@@ -38,7 +37,6 @@ export default function CreateQuiz() {
     newQuestions[index] = { ...newQuestions[index], [field]: value };
     setQuestions(newQuestions);
     
-    // Обновление превью изображения
     if (field === 'image' && value) {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -51,13 +49,11 @@ export default function CreateQuiz() {
     }
   };
 
-  // Обработчик для Drag & Drop и Paste
   const handleFileDropOrPaste = (index: number, file: File) => {
     if (!file.type.startsWith('image/')) {
       alert('Пожалуйста, загрузите только изображения.');
       return;
     }
-    // Проверка размера (5MB лимит для безопасности)
     if (file.size > 5 * 1024 * 1024) {
       alert('Файл слишком большой. Максимальный размер: 5 МБ.');
       return;
@@ -78,93 +74,65 @@ export default function CreateQuiz() {
     }
 
     setIsSaving(true);
-    console.log('🚀 Start saving quiz...');
+    console.log('🚀 Start saving quiz via API...');
 
     try {
       const code = generateJoinCode();
-      console.log('1️⃣ Generated Code:', code);
       
-      const response = await supabase
-        .from('quizzes')
-        .insert({
-          title: title,
-          join_code: code,
-          status: 'waiting',
-          teacher_id: null 
-        })
-        .select()
-        .single();
-
-      const createdQuiz = response.data;
-      const quizError = response.error;
-
-      if (quizError) throw quizError;
-      if (!createdQuiz || !createdQuiz.id) throw new Error('Квиз создан, но ID не получен.');
+      // 1. Создаем квиз через НАШ API
+      console.log('1️⃣ Creating Quiz via API...');
+      const createdQuiz = await createQuiz({
+        title: title,
+        join_code: code,
+        status: 'waiting',
+        teacher_id: null 
+      });
 
       console.log('2️⃣ Quiz Created ID:', createdQuiz.id);
       setQuizData(createdQuiz);
 
+      // 2. Сохраняем вопросы
       for (let i = 0; i < questions.length; i++) {
         const q = questions[i];
         let imageUrl = '';
 
+        // --- ЗАГРУЗКА КАРТИНКИ ЧЕРЕЗ API ---
         if (q.image) {
-          console.log(`3️⃣ Uploading image for question ${i + 1}...`);
+          console.log(`3️⃣ Uploading image for question ${i + 1} via API...`);
           
-          // Проверка размера файла перед загрузкой
-          if (q.image.size > 5 * 1024 * 1024) {
-            throw new Error(`Файл "${q.image.name}" слишком большой (макс. 5MB).`);
-          }
-
-          const fileExt = q.image.name.split('.').pop();
-          const fileName = `${createdQuiz.id}/q${i}_${Date.now()}.${fileExt}`;
-          
-          try {
-            const { error: uploadError } = await supabase.storage
-              .from('quiz-images')
-              .upload(fileName, q.image, {
-                 cacheControl: '3600',
-                 upsert: false 
-              });
-
-            if (uploadError) {
-              console.error('Upload Error Details:', uploadError);
-              throw new Error(`Ошибка загрузки фото: ${uploadError.message}`);
-            }
-            console.log('4️⃣ Image Uploaded');
-          } catch (err) {
-             console.error('Network/Storage Error:', err);
-             throw new Error('Не удалось загрузить изображение. Проверьте подключение к интернету и настройки Storage в Supabase (Policies).');
-          }
-
-          // Получаем публичный URL
-          const {   data } = supabase.storage.from('quiz-images').getPublicUrl(fileName);
-          
-          if (!data || !data.publicUrl) {
-             console.error('Failed to get public URL. Response:', data);
-             throw new Error('Не удалось получить ссылку на изображение.');
-          }
-          
-          imageUrl = data.publicUrl;
-          console.log('5️⃣ Image URL:', imageUrl);
-        }
-
-        console.log(`6️⃣ Saving question ${i + 1} to DB...`);
-        const { error: questionError } = await supabase
-          .from('questions')
-          .insert({
-            quiz_id: createdQuiz.id,
-            question_text: q.text,
-            image_url: imageUrl,
-            correct_answer: q.correctAnswer,
-            order_index: i
+          // Конвертируем File в Base64
+          const base64String = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(q.image);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
           });
 
-        if (questionError) {
-          console.error('Question Save Error:', questionError);
-          throw new Error(`Ошибка сохранения вопроса: ${questionError.message}`);
+          // Генерируем уникальное имя файла
+          const fileExt = q.image.name.split('.').pop();
+          const fileName = `q${i}_${Date.now()}.${fileExt}`;
+
+          try {
+            // Вызываем наш API эндпоинт
+            imageUrl = await uploadImage(base64String as string, fileName, createdQuiz.id);
+            console.log('4️⃣ Image Uploaded via API. URL:', imageUrl);
+          } catch (err) {
+             console.error('Image Upload Error:', err);
+             throw new Error('Не удалось загрузить изображение через сервер. Попробуйте еще раз.');
+          }
         }
-        console.log('7️⃣ Question Saved');
+
+        // 5. Сохраняем вопрос через НАШ API
+        console.log(`5️⃣ Saving question ${i + 1} via API...`);
+        await saveQuestion({
+          quiz_id: createdQuiz.id,
+          question_text: q.text,
+          image_url: imageUrl,
+          correct_answer: q.correctAnswer,
+          order_index: i
+        });
+        
+        console.log('6️⃣ Question Saved');
       }
 
       console.log('✅ All done!');
@@ -179,7 +147,7 @@ export default function CreateQuiz() {
     }
   };
 
-  // Экран успешного создания
+  // Экран успешного создания (без изменений)
   if (joinCode && quizData) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 relative">
@@ -208,7 +176,7 @@ export default function CreateQuiz() {
     );
   }
 
-  // Форма создания
+  // Форма создания (Drag & Drop и Paste остаются без изменений)
   return (
     <div className="min-h-screen bg-black relative p-6 pb-32">
       <div className="fixed top-6 left-6 z-50 text-white/30 text-xs font-mono tracking-widest pointer-events-none select-none">v0.1.0</div>

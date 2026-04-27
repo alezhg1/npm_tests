@@ -46,7 +46,8 @@ export default function TeacherDashboard() {
   ];
 
   return (
-    <div className="relative text-white font-sans antialiased selection:bg-white/20 min-h-screen flex flex-col">
+    // Добавлен overflow-y-auto для гарантии прокрутки, если контент превышает высоту экрана
+    <div className="relative text-white font-sans antialiased selection:bg-white/20 min-h-screen flex flex-col overflow-y-auto">
       
       {/* --- ВЕРХНЕЕ МЕНЮ --- */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/10">
@@ -93,11 +94,12 @@ export default function TeacherDashboard() {
       </div>
 
       {/* --- КОНТЕНТ --- */}
-      <div className="relative z-10 flex-1 pt-24">
+      {/* Убедимся, что этот блок тоже позволяет скролл, хотя flex-1 обычно справляется */}
+      <div className="relative z-10 flex-1 pt-24 w-full">
         
         {/* СЕКЦИЯ 1: ИНТРО */}
-        <section className="min-h-[calc(100vh-6rem)] flex flex-col items-center justify-center px-6 py-12"> {/* Уменьшил py-20 до py-12 */}
-          <div className="max-w-4xl text-center animate-fade-in-up -mt-16"> {/* Добавил -mt-16 для подъема всего блока */}
+        <section className="min-h-[calc(100vh-6rem)] flex flex-col items-center justify-center px-6 py-12">
+          <div className="max-w-4xl text-center animate-fade-in-up -mt-16">
             <div className="inline-block mb-6 px-6 py-2 border border-white/30 rounded-full bg-white/10 backdrop-blur-md shadow-[0_0_15px_rgba(255,255,255,0.1)]">
               <span className="text-xs uppercase tracking-[0.2em] text-gray-200 font-semibold">образовательная платформа</span>
             </div>
@@ -111,9 +113,10 @@ export default function TeacherDashboard() {
               Школьный образовательный ресурс, упрощающий доступ к обучению.
             </p>
             
+            {/* Исправлена ошибка: убран лишний атрибут overflow-hidden из тега <a> */}
             <a 
-              href="#features" 
-              className="group relative inline-flex items-center gap-3 px-10 py-5 bg-white/10 hover:bg-white/20 border border-white/30 rounded-full text-white font-bold text-lg transition-all duration-500 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] hover:shadow-[0_8px_32px_0_rgba(255,255,255,0.1)] overflow-hidden btn-press"
+              href="#features"
+              className="group relative inline-flex items-center gap-3 px-10 py-5 bg-white/10 hover:bg-white/20 border border-white/30 rounded-full text-white font-bold text-lg transition-all duration-500 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] hover:shadow-[0_8px_32px_0_rgba(255,255,255,0.1)] btn-press"
             >
               <span className="relative z-10">Исследовать возможности</span>
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="relative z-10 group-hover:translate-y-1 transition-transform"><polyline points="6 9 12 15 18 9"></polyline></svg>
@@ -122,8 +125,6 @@ export default function TeacherDashboard() {
             </a>
           </div>
         </section>
-
-        
 
         {/* --- ДЕТАЛЬНЫЕ СЕКЦИИ --- */}
         
