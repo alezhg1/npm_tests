@@ -113,3 +113,24 @@ export async function uploadImage(base64Image, fileName, quizId) {
   const data = await res.json();
   return data.url;
 }
+
+// --- QUIZ INFO ---
+export async function getQuizInfo(quizId) {
+  const res = await fetch(`${API_BASE}/quiz-info/${quizId}`);
+  if (!res.ok) throw new Error('Failed to fetch quiz info');
+  return res.json();
+}
+
+// --- FULL ANSWER DETAILS ---
+export async function getFullAnswerDetails(participantId) {
+  const res = await fetch(`${API_BASE}/answers/full/${participantId}`);
+  if (!res.ok) throw new Error('Failed to fetch answer details');
+  return res.json();
+}
+
+// --- CHEAT EVENTS ---
+export async function getCheatEvents(participantId) {
+  const res = await fetch(`${API_BASE}/cheat-events/${participantId}`);
+  if (!res.ok) throw new Error('Failed to fetch cheat events');
+  return res.json();
+}

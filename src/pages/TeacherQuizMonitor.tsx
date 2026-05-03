@@ -1,7 +1,13 @@
 // src/pages/TeacherQuizMonitor.tsx
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { 
+  getParticipants, 
+  getAnswers, 
+  getQuizInfo, 
+  getFullAnswerDetails, 
+  getCheatEvents 
+} from '../api/client';
 
 type Participant = {
   id: string;
@@ -42,7 +48,7 @@ export default function TeacherQuizMonitor() {
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [quizTitle, setQuizTitle] = useState('Загрузка...');
-  const [joinCode, setJoinCode] = useState<string>(''); // Добавили состояние для кода
+  const [joinCode, setJoinCode] = useState<string>('');
   const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null);
   const [fullAnswers, setFullAnswers] = useState<FullAnswerDetail[]>([]);
   const [cheatEvents, setCheatEvents] = useState<CheatEvent[]>([]);
@@ -52,16 +58,12 @@ export default function TeacherQuizMonitor() {
   const fetchParticipants = async () => {
     if (!quizId) return;
     console.log('🔄 Fetching participants...');
-    const { data, error } = await supabase
-      .from('quiz_participants')
-      .select('*')
-      .eq('quiz_id', quizId)
-      .order('joined_at', { ascending: true });
-    
-    if (error) console.error('Error fetching participants:', error);
-    else {
+    try {
+      const data = await getParticipants(quizId);
       console.log('✅ Participants loaded:', data?.length || 0);
       setParticipants(data || []);
+    } catch (error) {
+      console.error('Error fetching participants:', error);
     }
   };
 
@@ -75,20 +77,13 @@ export default function TeacherQuizMonitor() {
     }
 
     console.log('🔄 Fetching answers for', participants.length, 'participants...');
-    const participantIds = participants.map(p => p.id);
-
-    const { data, error } = await supabase
-      .from('answers')
-      .select('*')
-      .in('participant_id', participantIds);
-
-    if (error) {
+    try {
+      const data = await getAnswers(quizId);
+      console.log('✅ Answers loaded:', data?.length || 0);
+      setAnswers(data || []);
+    } catch (error) {
       console.error('❌ Error fetching answers:', error);
-      return;
     }
-
-    console.log('✅ Answers loaded:', data?.length || 0);
-    setAnswers(data || []);
   };
 
   // Загрузка полных деталей ответов И событий списывания для одного участника
@@ -99,40 +94,20 @@ export default function TeacherQuizMonitor() {
     console.log(' Fetching full details for participant:', participantId);
 
     try {
-      // 1. Загружаем ответы
-      const response = await supabase
-        .from('answers')
-        .select(`
-          *,
-          questions (
-            question_text,
-            correct_answer
-          )
-        `)
-        .eq('participant_id', participantId)
-        .order('answered_at', { ascending: true });
-
-      const answersData = response.data;
-      const ansError = response.error;
-
-      console.log('Raw Answers Response:', { answersData, ansError });
-
-      if (ansError) throw ansError;
+      // 1. Загружаем ответы с вопросами
+      const answersData = await getFullAnswerDetails(participantId);
+      console.log('Raw Answers Response:', answersData);
 
       // 2. Загружаем события списывания
-      const cheatsResponse = await supabase
-        .from('cheat_events')
-        .select('*')
-        .eq('participant_id', participantId)
-        .order('detected_at', { ascending: true });
-
-      const cheatsData = cheatsResponse.data;
-      const cheatError = cheatsResponse.error;
-
-      if (cheatError) console.error('Error fetching cheat events:', cheatError);
+      let cheatsData = [];
+      try {
+        cheatsData = await getCheatEvents(participantId);
+      } catch (cheatError) {
+        console.error('Error fetching cheat events:', cheatError);
+      }
 
       // Форматируем ответы
-      let formattedAnswers = [];
+      let formattedAnswers: FullAnswerDetail[] = [];
       if (answersData && answersData.length > 0) {
         formattedAnswers = answersData.map((item: any) => ({
           question_text: item.questions?.question_text || 'Текст вопроса недоступен',
@@ -162,31 +137,19 @@ export default function TeacherQuizMonitor() {
   useEffect(() => {
     if (!quizId) return;
 
-        const init = async () => {
-      console.log('🔍 Initializing Monitor for Quiz ID:', quizId); // <-- Лог ID из URL
+    const init = async () => {
+      console.log('🔍 Initializing Monitor for Quiz ID:', quizId);
 
       try {
-        // Загружаем название и код квиза одним запросом
-        const response = await supabase
-          .from('quizzes')
-          .select('title, join_code')
-          .eq('id', quizId)
-          .single();
+        // Загружаем название и код квиза через сервер
+        const quiz = await getQuizInfo(quizId);
         
-        console.log('📦 Quiz Info Response:', response); // <-- Лог полного ответа от базы
+        console.log('📦 Quiz Info Response:', quiz);
 
-        const quiz = response.data;
-        const error = response.error;
-        
-        if (error) {
-          console.error('Error fetching quiz info:', error);
-          setQuizTitle('Ошибка');
-          setJoinCode('ERR');
-        } else if (!quiz) {
-           // Сюда мы попадаем, если quiz === null
-           console.warn('⚠️ Quiz not found in DB for ID:', quizId);
-           setQuizTitle('Квиз не найден');
-           setJoinCode('???');
+        if (!quiz) {
+          console.warn('⚠️ Quiz not found in DB for ID:', quizId);
+          setQuizTitle('Квиз не найден');
+          setJoinCode('???');
         } else {
           setQuizTitle(quiz.title || 'Без названия');
           setJoinCode(quiz.join_code || '???');
@@ -203,34 +166,19 @@ export default function TeacherQuizMonitor() {
 
     init();
 
-    // --- REALTIME ПОДПИСКИ ---
-    const participantsChannel = supabase
-      .channel('quiz-participants-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'quiz_participants', filter: `quiz_id=eq.${quizId}` },
-        () => {
-          console.log('📢 Participant change detected!');
-          fetchParticipants();
-        }
-      )
-      .subscribe();
-
-    const answersChannel = supabase
-      .channel('quiz-answers-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'answers' },
-        () => {
-          console.log('📢 Answer change detected!');
-          fetchAnswers();
-        }
-      )
-      .subscribe();
+    // --- REALTIME ПОДПИСКИ (опционально, можно отключить если не критично) ---
+    // Для работы realtime нужен прямой доступ к Supabase, но он заблокирован в РФ
+    // Поэтому оставляем только polling через setInterval или полностью убираем realtime
+    
+    // Опрос каждые 3 секунды для обновления данных (замена realtime)
+    const pollInterval = setInterval(() => {
+      console.log('🔄 Polling for updates...');
+      fetchParticipants();
+      fetchAnswers();
+    }, 3000);
 
     return () => {
-      supabase.removeChannel(participantsChannel);
-      supabase.removeChannel(answersChannel);
+      clearInterval(pollInterval);
     };
   }, [quizId]);
 

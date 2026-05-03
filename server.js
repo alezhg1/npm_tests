@@ -170,6 +170,66 @@ app.post('/api/upload-image', async (req, res) => {
   }
 });
 
+// --- 6. QUIZ INFO (title, join_code) ---
+app.get('/api/quiz-info/:quizId', async (req, res) => {
+  try {
+    const { quizId } = req.params;
+    const { data, error } = await supabase
+      .from('quizzes')
+      .select('title, join_code')
+      .eq('id', quizId)
+      .single();
+    
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- 7. FULL ANSWER DETAILS (с вопросами) ---
+app.get('/api/answers/full/:participantId', async (req, res) => {
+  try {
+    const { participantId } = req.params;
+    const { data, error } = await supabase
+      .from('answers')
+      .select(`
+        *,
+        questions (
+          question_text,
+          correct_answer
+        )
+      `)
+      .eq('participant_id', participantId)
+      .order('answered_at', { ascending: true });
+    
+    if (error) throw error;
+    res.json(data || []);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- 8. CHEAT EVENTS ---
+app.get('/api/cheat-events/:participantId', async (req, res) => {
+  try {
+    const { participantId } = req.params;
+    const { data, error } = await supabase
+      .from('cheat_events')
+      .select('*')
+      .eq('participant_id', participantId)
+      .order('detected_at', { ascending: true });
+    
+    if (error) throw error;
+    res.json(data || []);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });
