@@ -58,6 +58,10 @@ export default function StudentJoin() {
       }
 
       console.log('✅ Participant Created ID:', participant.id);
+      
+      // Сохраняем participantId в sessionStorage для надежности
+      sessionStorage.setItem(`participant_${quiz.id}`, participant.id);
+      
       console.log('🧭 Navigating to /quiz/' + quiz.id, { 
         state: { studentName, quizTitle: quiz.title, participantId: participant.id } 
       });
