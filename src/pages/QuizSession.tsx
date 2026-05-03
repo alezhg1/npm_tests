@@ -19,8 +19,24 @@ export default function QuizSession() {
   // Отладка: логируем все параметры
   console.log('🔍 QuizSession - useParams:', params);
   console.log('🔍 QuizSession - location.pathname:', location.pathname);
+  console.log('🔍 QuizSession - Object.keys(params):', Object.keys(params));
+  console.log('🔍 QuizSession - JSON.stringify(params):', JSON.stringify(params));
   
+  // Пробуем получить quizId разными способами
   const quizIdFromParams = params.quizId;
+  const quizIdAlternative = (params as any).quizId;
+  
+  // Если не получили из params, пробуем извлечь из pathname
+  let quizId = quizIdFromParams || quizIdAlternative;
+  if (!quizId && location.pathname) {
+    const match = location.pathname.match(/\/quiz\/([^\/]+)/);
+    if (match) {
+      quizId = match[1];
+      console.log('✅ quizId extracted from pathname:', quizId);
+    }
+  }
+  
+  console.log('🎯 Final quizId:', quizId);
   
   // Данные из state при переходе со страницы входа
   const locationState = location.state || {};
@@ -29,7 +45,7 @@ export default function QuizSession() {
   
   // Если participantId не передан через state, пробуем получить из sessionStorage
   // Используем quizId из параметров URL для поиска в sessionStorage
-  const storedParticipantId = quizIdFromParams ? sessionStorage.getItem(`participant_${quizIdFromParams}`) : null;
+  const storedParticipantId = quizId ? sessionStorage.getItem(`participant_${quizId}`) : null;
   const finalParticipantId = participantId || storedParticipantId;
   
   const [quizTitle, setQuizTitle] = useState('Загрузка...');
@@ -54,16 +70,16 @@ export default function QuizSession() {
 
   // Загрузка данных квиза
   useEffect(() => {
-    console.log('📝 useEffect - quizIdFromParams:', quizIdFromParams, 'finalParticipantId:', finalParticipantId);
+    console.log('📝 useEffect - quizId:', quizId, 'finalParticipantId:', finalParticipantId);
     
-    if (!quizIdFromParams || !finalParticipantId) {
+    if (!quizId || !finalParticipantId) {
       console.warn('⚠️ Missing quizId or participantId, redirecting to /join');
-      console.log('quizIdFromParams:', quizIdFromParams, 'finalParticipantId:', finalParticipantId, 'locationState:', locationState);
+      console.log('quizId:', quizId, 'finalParticipantId:', finalParticipantId, 'locationState:', locationState);
       navigate('/join', { replace: true });
       return;
     }
 
-    console.log('📥 Loading quiz data for ID:', quizIdFromParams, 'Participant:', finalParticipantId);
+    console.log('📥 Loading quiz data for ID:', quizId, 'Participant:', finalParticipantId);
 
     const loadQuizData = async () => {
       try {
@@ -71,13 +87,13 @@ export default function QuizSession() {
         
         // 1. Загружаем название квиза
         console.log('🔍 Fetching quiz info...');
-        const quizInfo = await getQuizById(quizIdFromParams);
+        const quizInfo = await getQuizById(quizId);
         console.log('✅ Quiz info loaded:', quizInfo);
         setQuizTitle(quizInfo.title);
 
         // 2. Загружаем вопросы через НАШ API
         console.log('🔍 Fetching questions...');
-        const questionsData = await getQuestionsForQuiz(quizIdFromParams);
+        const questionsData = await getQuestionsForQuiz(quizId);
         console.log('✅ Questions loaded:', questionsData.length);
         setQuestions(questionsData);
 
@@ -90,7 +106,7 @@ export default function QuizSession() {
     };
 
     loadQuizData();
-  }, [quizIdFromParams, finalParticipantId, navigate]);
+  }, [quizId, finalParticipantId, navigate]);
 
   const handleOptionSelect = (option: string) => {
     if (isSubmitting) return; // Не даем менять выбор во время отправки
@@ -186,8 +202,8 @@ export default function QuizSession() {
             <button 
               onClick={() => {
                 // Очищаем sessionStorage при выходе из квиза
-                if (quizIdFromParams) {
-                  sessionStorage.removeItem(`participant_${quizIdFromParams}`);
+                if (quizId) {
+                  sessionStorage.removeItem(`participant_${quizId}`);
                 }
                 navigate('/');
               }}
