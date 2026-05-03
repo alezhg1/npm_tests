@@ -15,7 +15,7 @@ function App() {
         <Route path="/create-quiz" element={<CreateQuiz />} />
         <Route path="/ai-chat" element={<AiChat />} />
         <Route path="/join" element={<StudentJoin />} /> {/* <-- добавлено */}
-        <Route path="/quiz/:id" element={<QuizSession />} /> {/* <-- Добавлено */}
+        <Route path="/quiz/:quizId" element={<QuizSession />} /> {/* <-- Добавлено */}
         <Route path="/teacher/monitor/:quizId" element={<TeacherQuizMonitor />} /> {/* <-- Добавлено */}
       </Routes>
     </div>

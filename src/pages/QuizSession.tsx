@@ -12,9 +12,35 @@ type Question = {
 };
 
 export default function QuizSession() {
-  const { quizId } = useParams<{ quizId: string }>();
+  const params = useParams<{ quizId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // Отладка: логируем все параметры
+  console.log('🔍 QuizSession - useParams:', params);
+  console.log('🔍 QuizSession - location.pathname:', location.pathname);
+  console.log('🔍 QuizSession - Object.keys(params):', Object.keys(params));
+  console.log('🔍 QuizSession - JSON.stringify(params):', JSON.stringify(params));
+  
+  // В React Router v7 useParams может работать иначе, поэтому получаем quizId из pathname
+  let quizId: string | undefined;
+  
+  // Сначала пробуем из params
+  if (params.quizId) {
+    quizId = params.quizId;
+    console.log('✅ quizId from useParams:', quizId);
+  }
+  
+  // Если не получили из params, извлекаем из pathname
+  if (!quizId && location.pathname) {
+    const match = location.pathname.match(/\/quiz\/([^\/\?#]+)/);
+    if (match && match[1]) {
+      quizId = match[1];
+      console.log('✅ quizId extracted from pathname:', quizId);
+    }
+  }
+  
+  console.log('🎯 Final quizId:', quizId);
   
   // Данные из state при переходе со страницы входа
   const locationState = location.state || {};
@@ -22,8 +48,11 @@ export default function QuizSession() {
   const participantId = locationState.participantId;
   
   // Если participantId не передан через state, пробуем получить из sessionStorage
-  const storedParticipantId = sessionStorage.getItem(`participant_${quizId}`);
+  // Используем quizId из параметров URL для поиска в sessionStorage
+  const storedParticipantId = quizId ? sessionStorage.getItem(`participant_${quizId}`) : null;
   const finalParticipantId = participantId || storedParticipantId;
+  
+  console.log('📝 Initial values - quizId:', quizId, 'finalParticipantId:', finalParticipantId);
   
   const [quizTitle, setQuizTitle] = useState('Загрузка...');
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -47,6 +76,8 @@ export default function QuizSession() {
 
   // Загрузка данных квиза
   useEffect(() => {
+    console.log('📝 useEffect - quizId:', quizId, 'finalParticipantId:', finalParticipantId);
+    
     if (!quizId || !finalParticipantId) {
       console.warn('⚠️ Missing quizId or participantId, redirecting to /join');
       console.log('quizId:', quizId, 'finalParticipantId:', finalParticipantId, 'locationState:', locationState);
