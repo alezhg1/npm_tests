@@ -42,24 +42,31 @@ export default function QuizSession() {
   // Загрузка данных квиза
   useEffect(() => {
     if (!quizId || !participantId) {
-      navigate('/join');
+      console.warn('⚠️ Missing quizId or participantId, redirecting to /join');
+      navigate('/join', { replace: true });
       return;
     }
+
+    console.log('📥 Loading quiz data for ID:', quizId, 'Participant:', participantId);
 
     const loadQuizData = async () => {
       try {
         setIsLoading(true);
         
         // 1. Загружаем название квиза
+        console.log('🔍 Fetching quiz info...');
         const quizInfo = await getQuizById(quizId);
+        console.log('✅ Quiz info loaded:', quizInfo);
         setQuizTitle(quizInfo.title);
 
         // 2. Загружаем вопросы через НАШ API
+        console.log('🔍 Fetching questions...');
         const questionsData = await getQuestionsForQuiz(quizId);
+        console.log('✅ Questions loaded:', questionsData.length);
         setQuestions(questionsData);
 
       } catch (err: any) {
-        console.error('Error loading quiz:', err);
+        console.error('❌ Error loading quiz:', err);
         setError('Не удалось загрузить тест. Проверьте соединение или код квиза.');
       } finally {
         setIsLoading(false);

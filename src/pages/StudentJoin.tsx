@@ -58,17 +58,21 @@ export default function StudentJoin() {
       }
 
       console.log('✅ Participant Created ID:', participant.id);
+      console.log('🧭 Navigating to /quiz/' + quiz.id, { 
+        state: { studentName, quizTitle: quiz.title, participantId: participant.id } 
+      });
 
-      // Мгновенная навигация без задержки и без сброса isLoading
-      // (навигация произойдет быстрее, чем может обновиться UI)
-      navigate(`/quiz/${quiz.id}`, { 
+      // Мгновенная навигация без задержки
+      const navResult = navigate(`/quiz/${quiz.id}`, { 
         state: { 
           studentName, 
           quizTitle: quiz.title,
           participantId: participant.id
         },
-        replace: true // Заменяем текущую запись в истории, чтобы нельзя было вернуться назад кнопкой
+        replace: true
       });
+      
+      console.log('✅ Navigate called, result:', navResult);
       return; // Явно завершаем функцию
 
     } catch (err: any) {
