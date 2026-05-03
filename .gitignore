@@ -1,48 +1,52 @@
-```
+```gitignore
 # Dependencies
 node_modules/
-
-# Build outputs
-dist/
-build/
-target/
 
 # Environment variables
 .env
 .env.local
 *.env.*
 
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
+# Build outputs
+dist/
+build/
+target/
 
-# Logs
-*.log
-
-# Temporary files
-*.tmp
-
-# Python cache
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.Python
+env/
+venv/
+.venv/
+.ENV
+.python-version
 
-# Coverage reports
+# Logs
+*.log
+
+# Coverage
+.coverage
 coverage/
 htmlcov/
-.coverage
 
-# TypeScript/JavaScript build artifacts
-*.js.map
-*.tsbuildinfo
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
 
-# Distribution archives
-*.tar.gz
+# OS
+.DS_Store
+Thumbs.db
+
+# Compressed files
 *.zip
 *.gz
+*.tar
 *.tgz
 *.bz2
 *.xz
@@ -58,4 +62,8 @@ htmlcov/
 *.Z
 *.lz
 *.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
 ```

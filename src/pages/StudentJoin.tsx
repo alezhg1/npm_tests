@@ -59,17 +59,17 @@ export default function StudentJoin() {
 
       console.log('✅ Participant Created ID:', participant.id);
 
-      // НЕБОЛЬШАЯ ЗАДЕРЖКА ПЕРЕД НАВИГАЦИЕЙ, чтобы убедиться, что состояние обновилось
-      setTimeout(() => {
-        navigate(`/quiz/${quiz.id}`, { 
-          state: { 
-            studentName, 
-            quizTitle: quiz.title,
-            participantId: participant.id
-          },
-          replace: true // Заменяем текущую запись в истории, чтобы нельзя было вернуться назад кнопкой
-        });
-      }, 100);
+      // Мгновенная навигация без задержки и без сброса isLoading
+      // (навигация произойдет быстрее, чем может обновиться UI)
+      navigate(`/quiz/${quiz.id}`, { 
+        state: { 
+          studentName, 
+          quizTitle: quiz.title,
+          participantId: participant.id
+        },
+        replace: true // Заменяем текущую запись в истории, чтобы нельзя было вернуться назад кнопкой
+      });
+      return; // Явно завершаем функцию
 
     } catch (err: any) {
       console.error('Final Join Error:', err);
@@ -80,6 +80,8 @@ export default function StudentJoin() {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
       handleJoin(e);
     }
   };
