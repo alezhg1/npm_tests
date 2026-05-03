@@ -58,18 +58,26 @@ export default function StudentJoin() {
       }
 
       console.log('✅ Participant Created ID:', participant.id);
+      
+      // Сохраняем participantId в sessionStorage для надежности
+      sessionStorage.setItem(`participant_${quiz.id}`, participant.id);
+      
+      console.log('🧭 Navigating to /quiz/' + quiz.id, { 
+        state: { studentName, quizTitle: quiz.title, participantId: participant.id } 
+      });
 
-      // НЕБОЛЬШАЯ ЗАДЕРЖКА ПЕРЕД НАВИГАЦИЕЙ, чтобы убедиться, что состояние обновилось
-      setTimeout(() => {
-        navigate(`/quiz/${quiz.id}`, { 
-          state: { 
-            studentName, 
-            quizTitle: quiz.title,
-            participantId: participant.id
-          },
-          replace: true // Заменяем текущую запись в истории, чтобы нельзя было вернуться назад кнопкой
-        });
-      }, 100);
+      // Мгновенная навигация без задержки
+      const navResult = navigate(`/quiz/${quiz.id}`, { 
+        state: { 
+          studentName, 
+          quizTitle: quiz.title,
+          participantId: participant.id
+        },
+        replace: true
+      });
+      
+      console.log('✅ Navigate called, result:', navResult);
+      return; // Явно завершаем функцию
 
     } catch (err: any) {
       console.error('Final Join Error:', err);
@@ -80,6 +88,8 @@ export default function StudentJoin() {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
       handleJoin(e);
     }
   };

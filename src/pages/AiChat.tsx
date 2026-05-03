@@ -37,7 +37,8 @@ const RenderMessage = ({ msg }: { msg: Message }) => {
           rehypePlugins={[rehypeKatex]}
           components={{
             // Кастомный рендерер для блоков кода с языком html
-            code({ node, inline, className, children, ...props }) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            code({ node, inline, className, children, ...props }: any) {
               const match = /language-(\w+)/.exec(className || '');
               const lang = match ? match[1] : '';
 

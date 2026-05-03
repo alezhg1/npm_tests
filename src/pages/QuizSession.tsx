@@ -17,8 +17,14 @@ export default function QuizSession() {
   const navigate = useNavigate();
   
   // Данные из state при переходе со страницы входа
-  const { studentName, participantId } = location.state || {};
-
+  const locationState = location.state || {};
+  const studentName = locationState.studentName;
+  const participantId = locationState.participantId;
+  
+  // Если participantId не передан через state, пробуем получить из sessionStorage
+  const storedParticipantId = sessionStorage.getItem(`participant_${quizId}`);
+  const finalParticipantId = participantId || storedParticipantId;
+  
   const [quizTitle, setQuizTitle] = useState('Загрузка...');
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -41,25 +47,33 @@ export default function QuizSession() {
 
   // Загрузка данных квиза
   useEffect(() => {
-    if (!quizId || !participantId) {
-      navigate('/join');
+    if (!quizId || !finalParticipantId) {
+      console.warn('⚠️ Missing quizId or participantId, redirecting to /join');
+      console.log('quizId:', quizId, 'finalParticipantId:', finalParticipantId, 'locationState:', locationState);
+      navigate('/join', { replace: true });
       return;
     }
+
+    console.log('📥 Loading quiz data for ID:', quizId, 'Participant:', finalParticipantId);
 
     const loadQuizData = async () => {
       try {
         setIsLoading(true);
         
         // 1. Загружаем название квиза
+        console.log('🔍 Fetching quiz info...');
         const quizInfo = await getQuizById(quizId);
+        console.log('✅ Quiz info loaded:', quizInfo);
         setQuizTitle(quizInfo.title);
 
         // 2. Загружаем вопросы через НАШ API
+        console.log('🔍 Fetching questions...');
         const questionsData = await getQuestionsForQuiz(quizId);
+        console.log('✅ Questions loaded:', questionsData.length);
         setQuestions(questionsData);
 
       } catch (err: any) {
-        console.error('Error loading quiz:', err);
+        console.error('❌ Error loading quiz:', err);
         setError('Не удалось загрузить тест. Проверьте соединение или код квиза.');
       } finally {
         setIsLoading(false);
@@ -67,7 +81,7 @@ export default function QuizSession() {
     };
 
     loadQuizData();
-  }, [quizId, participantId, navigate]);
+  }, [quizId, finalParticipantId, navigate]);
 
   const handleOptionSelect = (option: string) => {
     if (isSubmitting) return; // Не даем менять выбор во время отправки
@@ -81,9 +95,9 @@ export default function QuizSession() {
     const currentQuestion = questions[currentQuestionIndex];
 
     try {
-      // Отправляем ответ через НАШ API
+      // Отправляем ответ через НАШ API, используем finalParticipantId
       await submitAnswer({
-        participant_id: participantId,
+        participant_id: finalParticipantId,
         question_id: currentQuestion.id,
         selected_answer: selectedOption,
         is_correct: selectedOption.toLowerCase().trim() === currentQuestion.correct_answer.toLowerCase().trim(),
@@ -161,7 +175,13 @@ export default function QuizSession() {
             </div>
             
             <button 
-              onClick={() => navigate('/')}
+              onClick={() => {
+                // Очищаем sessionStorage при выходе из квиза
+                if (quizId) {
+                  sessionStorage.removeItem(`participant_${quizId}`);
+                }
+                navigate('/');
+              }}
               className="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-gray-200 transition-all duration-300 shadow-lg hover:shadow-white/20 btn-press"
             >
               На главную

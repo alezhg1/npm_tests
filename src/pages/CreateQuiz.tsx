@@ -103,7 +103,7 @@ export default function CreateQuiz() {
           // Конвертируем File в Base64
           const base64String = await new Promise((resolve, reject) => {
             const reader = new FileReader();
-            reader.readAsDataURL(q.image);
+            reader.readAsDataURL(q.image!);
             reader.onload = () => resolve(reader.result);
             reader.onerror = error => reject(error);
           });
