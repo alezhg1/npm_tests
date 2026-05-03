@@ -12,9 +12,15 @@ type Question = {
 };
 
 export default function QuizSession() {
-  const { quizId } = useParams<{ quizId: string }>();
+  const params = useParams<{ quizId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // Отладка: логируем все параметры
+  console.log('🔍 QuizSession - useParams:', params);
+  console.log('🔍 QuizSession - location.pathname:', location.pathname);
+  
+  const quizIdFromParams = params.quizId;
   
   // Данные из state при переходе со страницы входа
   const locationState = location.state || {};
@@ -22,7 +28,8 @@ export default function QuizSession() {
   const participantId = locationState.participantId;
   
   // Если participantId не передан через state, пробуем получить из sessionStorage
-  const storedParticipantId = sessionStorage.getItem(`participant_${quizId}`);
+  // Используем quizId из параметров URL для поиска в sessionStorage
+  const storedParticipantId = quizIdFromParams ? sessionStorage.getItem(`participant_${quizIdFromParams}`) : null;
   const finalParticipantId = participantId || storedParticipantId;
   
   const [quizTitle, setQuizTitle] = useState('Загрузка...');
@@ -47,14 +54,16 @@ export default function QuizSession() {
 
   // Загрузка данных квиза
   useEffect(() => {
-    if (!quizId || !finalParticipantId) {
+    console.log('📝 useEffect - quizIdFromParams:', quizIdFromParams, 'finalParticipantId:', finalParticipantId);
+    
+    if (!quizIdFromParams || !finalParticipantId) {
       console.warn('⚠️ Missing quizId or participantId, redirecting to /join');
-      console.log('quizId:', quizId, 'finalParticipantId:', finalParticipantId, 'locationState:', locationState);
+      console.log('quizIdFromParams:', quizIdFromParams, 'finalParticipantId:', finalParticipantId, 'locationState:', locationState);
       navigate('/join', { replace: true });
       return;
     }
 
-    console.log('📥 Loading quiz data for ID:', quizId, 'Participant:', finalParticipantId);
+    console.log('📥 Loading quiz data for ID:', quizIdFromParams, 'Participant:', finalParticipantId);
 
     const loadQuizData = async () => {
       try {
@@ -62,13 +71,13 @@ export default function QuizSession() {
         
         // 1. Загружаем название квиза
         console.log('🔍 Fetching quiz info...');
-        const quizInfo = await getQuizById(quizId);
+        const quizInfo = await getQuizById(quizIdFromParams);
         console.log('✅ Quiz info loaded:', quizInfo);
         setQuizTitle(quizInfo.title);
 
         // 2. Загружаем вопросы через НАШ API
         console.log('🔍 Fetching questions...');
-        const questionsData = await getQuestionsForQuiz(quizId);
+        const questionsData = await getQuestionsForQuiz(quizIdFromParams);
         console.log('✅ Questions loaded:', questionsData.length);
         setQuestions(questionsData);
 
@@ -81,7 +90,7 @@ export default function QuizSession() {
     };
 
     loadQuizData();
-  }, [quizId, finalParticipantId, navigate]);
+  }, [quizIdFromParams, finalParticipantId, navigate]);
 
   const handleOptionSelect = (option: string) => {
     if (isSubmitting) return; // Не даем менять выбор во время отправки
@@ -177,8 +186,8 @@ export default function QuizSession() {
             <button 
               onClick={() => {
                 // Очищаем sessionStorage при выходе из квиза
-                if (quizId) {
-                  sessionStorage.removeItem(`participant_${quizId}`);
+                if (quizIdFromParams) {
+                  sessionStorage.removeItem(`participant_${quizIdFromParams}`);
                 }
                 navigate('/');
               }}
