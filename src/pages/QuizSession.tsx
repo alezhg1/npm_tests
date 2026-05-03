@@ -22,15 +22,19 @@ export default function QuizSession() {
   console.log('🔍 QuizSession - Object.keys(params):', Object.keys(params));
   console.log('🔍 QuizSession - JSON.stringify(params):', JSON.stringify(params));
   
-  // Пробуем получить quizId разными способами
-  const quizIdFromParams = params.quizId;
-  const quizIdAlternative = (params as any).quizId;
+  // В React Router v7 useParams может работать иначе, поэтому получаем quizId из pathname
+  let quizId: string | undefined;
   
-  // Если не получили из params, пробуем извлечь из pathname
-  let quizId = quizIdFromParams || quizIdAlternative;
+  // Сначала пробуем из params
+  if (params.quizId) {
+    quizId = params.quizId;
+    console.log('✅ quizId from useParams:', quizId);
+  }
+  
+  // Если не получили из params, извлекаем из pathname
   if (!quizId && location.pathname) {
-    const match = location.pathname.match(/\/quiz\/([^\/]+)/);
-    if (match) {
+    const match = location.pathname.match(/\/quiz\/([^\/\?#]+)/);
+    if (match && match[1]) {
       quizId = match[1];
       console.log('✅ quizId extracted from pathname:', quizId);
     }
@@ -47,6 +51,8 @@ export default function QuizSession() {
   // Используем quizId из параметров URL для поиска в sessionStorage
   const storedParticipantId = quizId ? sessionStorage.getItem(`participant_${quizId}`) : null;
   const finalParticipantId = participantId || storedParticipantId;
+  
+  console.log('📝 Initial values - quizId:', quizId, 'finalParticipantId:', finalParticipantId);
   
   const [quizTitle, setQuizTitle] = useState('Загрузка...');
   const [questions, setQuestions] = useState<Question[]>([]);
